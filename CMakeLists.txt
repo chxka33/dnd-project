@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(SFML 2.6 COMPONENTS system window graphics audio REQUIRED)
+find_package(SFML 2.6 COMPONENTS system window graphics REQUIRED)
 
 include(FetchContent)
 
@@ -35,7 +35,7 @@ list(REMOVE_ITEM DND_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp)
 add_library(dnd_core STATIC ${DND_SOURCES})
 target_include_directories(dnd_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(dnd_core PUBLIC
-    sfml-graphics sfml-window sfml-audio sfml-system
+    sfml-graphics sfml-window sfml-system
     ImGui-SFML::ImGui-SFML
     nlohmann_json::nlohmann_json)
 

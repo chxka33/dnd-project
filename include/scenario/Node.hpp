@@ -50,9 +50,8 @@ namespace dnd::scenario
     /// Медиаданные узла. Пути относительны корня ассетов (ResourceManager::assetRoot()).
     struct NodeMedia
     {
-        std::string mapPath;   ///< 2D-карта локации
-        std::string artPath;   ///< арт локации / персонажа
-        std::string musicPath; ///< фоновая музыка
+        std::string mapPath; ///< 2D-карта локации
+        std::string artPath; ///< арт локации / персонажа
     };
 
     /// Позиция узла на холсте редактора (чтобы граф не «слипался» после загрузки).
@@ -96,7 +95,7 @@ namespace dnd::scenario
         // Общие данные узла. Публичные поля: их напрямую редактирует GUI редактора.
         std::string title;                       ///< короткое название (для графа)
         std::string text;                        ///< текст, который читает Мастер/игроки
-        NodeMedia media;                         ///< карта, арт, музыка
+        NodeMedia media;                         ///< карта, арт
         std::optional<SkillCheck> skillCheck;    ///< проверка навыка при входе в узел
         EditorPosition position;                 ///< положение в редакторе
 
