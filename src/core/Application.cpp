@@ -1,5 +1,6 @@
 #include "core/Application.hpp"
 #include "core/MainMenuState.hpp"
+#include "core/PlaceholderState.hpp" // нужен для registerStates()
 
 #include <SFML/System/Clock.hpp>
 
@@ -7,6 +8,7 @@
 #include <imgui.h>
 
 #include <memory>
+#include <stdexcept> // для std::runtime_error
 
 namespace dnd::core
 {
