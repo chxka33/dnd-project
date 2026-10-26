@@ -1,6 +1,5 @@
 #include "core/Application.hpp"
 #include "core/MainMenuState.hpp"
-#include "core/PlaceholderState.hpp" // нужен для registerStates()
 
 #include <SFML/System/Clock.hpp>
 

@@ -23,10 +23,25 @@ FetchContent_Declare(imgui
 
 set(IMGUI_SFML_FIND_SFML OFF CACHE BOOL "" FORCE)
 
+# Патч imgui-sfml v2.6 для SFML 2.6.x на новых libc++ (Xcode 16+):
+# toUtf8() теперь возвращает sf::U8String, а не std::basic_string<std::uint8_t>.
+# Скрипт генерируется сюда же, отдельный файл не нужен. Выполняется в каталоге исходников imgui-sfml.
+set(DND_IMGUI_SFML_PATCH ${CMAKE_BINARY_DIR}/patch_imgui_sfml.cmake)
+file(WRITE ${DND_IMGUI_SFML_PATCH} [=[
+file(READ "imgui-SFML.cpp" _content)
+string(REPLACE
+    "std::basic_string<std::uint8_t> tmp = sf::Clipboard::getString().toUtf8();"
+    "auto tmp = sf::Clipboard::getString().toUtf8();"
+    _content "${_content}")
+file(WRITE "imgui-SFML.cpp" "${_content}")
+]=])
+
 FetchContent_Declare(imgui-sfml
     GIT_REPOSITORY https://github.com/SFML/imgui-sfml.git
     GIT_TAG        v2.6
-    GIT_SHALLOW    TRUE)
+    GIT_SHALLOW    TRUE
+    # Совместимость с SFML 2.6.x на новых libc++ (Xcode 16+), см. скрипт выше
+    PATCH_COMMAND  ${CMAKE_COMMAND} -P ${DND_IMGUI_SFML_PATCH})
 
 FetchContent_MakeAvailable(nlohmann_json SFML imgui)
 
@@ -66,3 +81,22 @@ add_custom_command(TARGET dnd_project POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
             ${CMAKE_CURRENT_SOURCE_DIR}/assets
             $<TARGET_FILE_DIR:dnd_project>/assets)
+
+# Юнит-тесты (Catch2): cmake -DDND_BUILD_TESTS=ON ..
+option(DND_BUILD_TESTS "Build unit tests" OFF)
+if(DND_BUILD_TESTS)
+    FetchContent_Declare(Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.5.4
+        GIT_SHALLOW    TRUE)
+    FetchContent_MakeAvailable(Catch2)
+
+    enable_testing()
+    file(GLOB DND_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
+    add_executable(dnd_tests ${DND_TEST_SOURCES})
+    target_link_libraries(dnd_tests PRIVATE dnd_core Catch2::Catch2WithMain)
+
+    include(CTest)
+    include(Catch)
+    catch_discover_tests(dnd_tests)
+endif()
