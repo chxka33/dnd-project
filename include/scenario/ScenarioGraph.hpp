@@ -28,7 +28,7 @@ namespace dnd::scenario
         std::string message;
     };
 
-    /// Граф сценария: владеет узлами и знает стартовый узел.
+    /// Нелинейный сюжет сценария: владеет узлами и знает стартовый узел.
     /// Узлы хранятся в порядке добавления (стабильный порядок для редактора и .dndsc).
     class ScenarioGraph
     {
@@ -41,7 +41,7 @@ namespace dnd::scenario
         /// Первый добавленный узел автоматически становится стартовым.
         Node &add(std::unique_ptr<Node> node);
 
-        /// Создаёт узел типа T на месте: graph.emplace<StoryNode>("intro", "Таверна").
+        /// Создаёт узел типа T на месте: scenario.emplace<StoryNode>("intro", "Таверна").
         template <class T, class... Args>
         T &emplace(NodeId id, Args &&...args)
         {

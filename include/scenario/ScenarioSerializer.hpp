@@ -11,17 +11,17 @@
 namespace dnd::scenario
 {
 
-    /// Класс-утилита для сохранения и загрузки графа сценария в формате .dndsc (JSON).
+    /// Класс-утилита для сохранения и загрузки нелинейного сюжета сценария в формате .dndsc (JSON).
     class ScenarioSerializer
     {
     public:
         /// Текущая версия формата файла .dndsc.
         static constexpr int kCurrentFormatVersion = 1;
 
-        /// Сериализует граф сценария в объект nlohmann::json.
+        /// Сериализует нелинейный сюжет в объект nlohmann::json.
         static nlohmann::json toJson(const ScenarioGraph &graph);
 
-        /// Десериализует граф сценария из объекта nlohmann::json.
+        /// Десериализует нелинейный сюжет из объекта nlohmann::json.
         /// При ошибке возвращает nullptr и, если указан outError, записывает в него пояснение.
         static std::unique_ptr<ScenarioGraph> fromJson(const nlohmann::json &j, std::string *outError = nullptr);
 

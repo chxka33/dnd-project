@@ -279,7 +279,7 @@ namespace dnd::scenario
                     else
                     {
                         if (outError)
-                            *outError = "Specified startNode '" + startId + "' not found in scenario graph.";
+                            *outError = "Specified startNode '" + startId + "' not found in scenario.";
                         return nullptr;
                     }
                 }
