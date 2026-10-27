@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "entities/Character.hpp"
+#include "entities/ItemPresets.hpp"
+#include "entities/Roster.hpp"
 
 using namespace dnd::entities;
 
@@ -367,4 +369,88 @@ TEST_CASE("Классы: данные и строковые преобразов
     CHECK_FALSE(characterClassFromString("jedi").has_value());
     CHECK(classInfo(CharacterClass::Barbarian).hitDie == 12);
     CHECK(classInfo(CharacterClass::Wizard).hitDie == 6);
+}
+
+TEST_CASE("Каталог предметов: параметры доспехов и оружия", "[entities][items]")
+{
+    const auto &presets = itemPresets();
+    REQUIRE_FALSE(presets.empty());
+
+    bool foundChainMail = false;
+    for (const Item &item : presets)
+    {
+        CHECK_FALSE(item.name.empty());
+        CHECK(item.quantity == 1);
+        if (item.type == ItemType::Armor)
+            CHECK(item.armor.has_value());
+        if (item.type == ItemType::Weapon)
+            CHECK(item.weapon.has_value());
+        if (item.name == "Chain Mail")
+        {
+            foundChainMail = true;
+            CHECK(item.armor->baseAc == 16);
+            CHECK(item.armor->category == ArmorCategory::Heavy);
+        }
+    }
+    CHECK(foundChainMail);
+}
+
+TEST_CASE("Roster: добавление, удаление, подсчёт сторон", "[entities][roster]")
+{
+    Roster roster;
+    CHECK(roster.empty());
+
+    const auto a = roster.add(Character("A", CharacterClass::Fighter), Side::Player);
+    const auto b = roster.add(Character("B", CharacterClass::Wizard), Side::Enemy);
+    CHECK(a == 0);
+    CHECK(b == 1);
+    CHECK(roster.count(Side::Player) == 1);
+    CHECK(roster.count(Side::Enemy) == 1);
+
+    roster.at(1).character.applyDamage(1000);
+    CHECK(roster.countAlive(Side::Enemy) == 0);
+    CHECK(roster.countAlive(Side::Player) == 1);
+
+    CHECK_FALSE(roster.remove(5));
+    CHECK(roster.remove(0));
+    CHECK(roster.size() == 1);
+    CHECK(roster.at(0).character.name == "B");
+}
+
+TEST_CASE("Roster: длинный отдых только для игроков", "[entities][roster]")
+{
+    Roster roster;
+    roster.add(Character("Hero", CharacterClass::Fighter), Side::Player);
+    roster.add(Character("Orc", CharacterClass::Barbarian), Side::Enemy);
+    roster.at(0).character.applyDamage(5);
+    roster.at(1).character.applyDamage(5);
+
+    roster.longRestPlayers();
+    CHECK(roster.at(0).character.currentHp() == roster.at(0).character.maxHp());
+    CHECK(roster.at(1).character.currentHp() < roster.at(1).character.maxHp());
+}
+
+TEST_CASE("Демонстрационная группа: расчёты согласованы", "[entities][roster]")
+{
+    Roster roster;
+    roster.addDemoParty();
+    CHECK(roster.count(Side::Player) == 4);
+    CHECK(roster.count(Side::Enemy) == 2);
+
+    // Thorin: кольчуга (16, тяжёлый) + щит (+2) = 18
+    const Character &thorin = roster.at(0).character;
+    REQUIRE(thorin.name == "Thorin");
+    CHECK(thorin.armorClass() == 18);
+
+    // Elara: волшебник 3 ур., ИНТ 17 (+3), владение +2 -> СЛ 13; слоты 4/2
+    const Character &elara = roster.at(1).character;
+    CHECK(*elara.spellSaveDc() == 13);
+    CHECK(elara.spellSlots().max(1) == 4);
+    CHECK(elara.spellSlots().max(2) == 2);
+
+    // Finn: кожаный доспех (11) + ЛОВ 17 (+3) = 14
+    CHECK(roster.at(3).character.armorClass() == 14);
+
+    for (const RosterEntry &e : roster.entries())
+        CHECK_FALSE(e.character.isEncumbered());
 }

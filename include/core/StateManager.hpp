@@ -19,6 +19,7 @@ namespace dnd::core
         MainMenu,
         Editor,    // редактор сценариев (Назаров)
         Simulator, // симулятор игры (Ярошук)
+        Characters, // листы персонажей и панель Мастера (Ярошук)
         Options
     };
 

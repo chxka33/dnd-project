@@ -46,7 +46,7 @@ namespace dnd::entities
     struct ClassInfo
     {
         const char *name;                           ///< идентификатор ("fighter") — для .dndsc
-        const char *displayName;                    ///< название для UI
+        const char *displayName;                    ///< название для UI (латиницей: шрифт ImGui по умолчанию без кириллицы)
         int hitDie;                                 ///< кость хитов: 6, 8, 10 или 12
         std::array<Ability, 2> savingThrows;        ///< спасброски, в которых класс владеет
         CasterType caster;

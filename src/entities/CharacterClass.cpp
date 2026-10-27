@@ -10,18 +10,18 @@ namespace dnd::entities
 
         // Порядок строк совпадает с порядком значений CharacterClass.
         const std::array<ClassInfo, kClassCount> kClasses = {{
-            {"barbarian", "Варвар",     12, {A::Strength, A::Constitution},     C::None, std::nullopt},
-            {"bard",      "Бард",        8, {A::Dexterity, A::Charisma},        C::Full, A::Charisma},
-            {"cleric",    "Жрец",        8, {A::Wisdom, A::Charisma},           C::Full, A::Wisdom},
-            {"druid",     "Друид",       8, {A::Intelligence, A::Wisdom},       C::Full, A::Wisdom},
-            {"fighter",   "Воин",       10, {A::Strength, A::Constitution},     C::None, std::nullopt},
-            {"monk",      "Монах",       8, {A::Strength, A::Dexterity},        C::None, std::nullopt},
-            {"paladin",   "Паладин",    10, {A::Wisdom, A::Charisma},           C::Half, A::Charisma},
-            {"ranger",    "Следопыт",   10, {A::Strength, A::Dexterity},        C::Half, A::Wisdom},
-            {"rogue",     "Плут",        8, {A::Dexterity, A::Intelligence},    C::None, std::nullopt},
-            {"sorcerer",  "Чародей",     6, {A::Constitution, A::Charisma},     C::Full, A::Charisma},
-            {"warlock",   "Колдун",      8, {A::Wisdom, A::Charisma},           C::Pact, A::Charisma},
-            {"wizard",    "Волшебник",   6, {A::Intelligence, A::Wisdom},       C::Full, A::Intelligence},
+            {"barbarian", "Barbarian",     12, {A::Strength, A::Constitution},     C::None, std::nullopt},
+            {"bard",      "Bard",        8, {A::Dexterity, A::Charisma},        C::Full, A::Charisma},
+            {"cleric",    "Cleric",        8, {A::Wisdom, A::Charisma},           C::Full, A::Wisdom},
+            {"druid",     "Druid",       8, {A::Intelligence, A::Wisdom},       C::Full, A::Wisdom},
+            {"fighter",   "Fighter",       10, {A::Strength, A::Constitution},     C::None, std::nullopt},
+            {"monk",      "Monk",       8, {A::Strength, A::Dexterity},        C::None, std::nullopt},
+            {"paladin",   "Paladin",    10, {A::Wisdom, A::Charisma},           C::Half, A::Charisma},
+            {"ranger",    "Ranger",   10, {A::Strength, A::Dexterity},        C::Half, A::Wisdom},
+            {"rogue",     "Rogue",        8, {A::Dexterity, A::Intelligence},    C::None, std::nullopt},
+            {"sorcerer",  "Sorcerer",     6, {A::Constitution, A::Charisma},     C::Full, A::Charisma},
+            {"warlock",   "Warlock",      8, {A::Wisdom, A::Charisma},           C::Pact, A::Charisma},
+            {"wizard",    "Wizard",   6, {A::Intelligence, A::Wisdom},       C::Full, A::Intelligence},
         }};
     } // namespace
 

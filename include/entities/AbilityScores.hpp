@@ -19,8 +19,10 @@ namespace dnd::entities
         Ability::Strength, Ability::Dexterity, Ability::Constitution,
         Ability::Intelligence, Ability::Wisdom, Ability::Charisma};
 
-    /// Короткое обозначение для UI: "СИЛ", "ЛОВ", ...
+    /// Короткое обозначение для UI: "STR", "DEX", ... (латиницей: шрифт ImGui по умолчанию без кириллицы)
+    /// Полное английское название: "Strength", "Dexterity", ...
     const char *shortName(Ability ability);
+    const char *fullName(Ability ability);
 
     /// Блок характеристик персонажа: значения (1..30) и автоматический расчёт модификаторов.
     class AbilityScores

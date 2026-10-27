@@ -22,14 +22,28 @@ namespace dnd::entities
     {
         switch (ability)
         {
-        case Ability::Strength:     return "СИЛ";
-        case Ability::Dexterity:    return "ЛОВ";
-        case Ability::Constitution: return "ТЕЛ";
-        case Ability::Intelligence: return "ИНТ";
-        case Ability::Wisdom:       return "МДР";
-        case Ability::Charisma:     return "ХАР";
+        case Ability::Strength:     return "STR";
+        case Ability::Dexterity:    return "DEX";
+        case Ability::Constitution: return "CON";
+        case Ability::Intelligence: return "INT";
+        case Ability::Wisdom:       return "WIS";
+        case Ability::Charisma:     return "CHA";
         }
-        return "СИЛ";
+        return "STR";
+    }
+
+    const char *fullName(Ability ability)
+    {
+        switch (ability)
+        {
+        case Ability::Strength:     return "Strength";
+        case Ability::Dexterity:    return "Dexterity";
+        case Ability::Constitution: return "Constitution";
+        case Ability::Intelligence: return "Intelligence";
+        case Ability::Wisdom:       return "Wisdom";
+        case Ability::Charisma:     return "Charisma";
+        }
+        return "Strength";
     }
 
     AbilityScores::AbilityScores()

@@ -1,4 +1,5 @@
 #include "core/Application.hpp"
+#include "core/CharactersState.hpp"
 #include "core/MainMenuState.hpp"
 
 #include <SFML/System/Clock.hpp>
@@ -33,7 +34,7 @@ namespace dnd::core
 
         return sf::RenderWindow(sf::VideoMode(config.width, config.height),
                                 config.title); }()),
-          m_context{m_window, m_resources, m_states}
+          m_context{m_window, m_resources, m_states, m_roster}
     {
         m_window.setFramerateLimit(m_config.fps);
         m_resources.setAssetRoot(m_config.assetRoot);
@@ -69,6 +70,9 @@ namespace dnd::core
         m_states.registerState(StateId::Simulator,
                                []
                                { return std::make_unique<PlaceholderState>("Game Simulator"); });
+        m_states.registerState(StateId::Characters,
+                               []
+                               { return std::make_unique<CharactersState>(); });
         m_states.registerState(StateId::Options,
                                []
                                { return std::make_unique<PlaceholderState>("Options"); });
