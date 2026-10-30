@@ -101,6 +101,18 @@ namespace dnd::entities
         /// Бонус атаки заклинанием = бонус владения + мод. ключевой характеристики.
         std::optional<int> spellAttackBonus() const;
 
+        // --- Пассивные показатели ----------------------------------------------
+        /// Пассивная внимательность: 10 + модификатор Мудрости.
+        int passivePerception() const;
+
+        // --- Состояния (Conditions) --------------------------------------------
+        const std::vector<std::string> &conditions() const { return m_conditions; }
+        std::vector<std::string> &conditions() { return m_conditions; }
+        void addCondition(std::string condition);
+        void removeCondition(const std::string &condition);
+        bool hasCondition(const std::string &condition) const;
+        void clearConditions();
+
         // --- Отдых -------------------------------------------------------------
         /// Длинный отдых: полные HP, все ячейки заклинаний, временные HP сбрасываются.
         void longRest();
@@ -118,6 +130,7 @@ namespace dnd::entities
         int m_currentHp = 0;
         int m_tempHp = 0;
         int m_miscAcBonus = 0;
+        std::vector<std::string> m_conditions;
     };
 
 } // namespace dnd::entities

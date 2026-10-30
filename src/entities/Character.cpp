@@ -168,4 +168,34 @@ namespace dnd::entities
             m_slots.restoreAll();
     }
 
+    int Character::passivePerception() const
+    {
+        return 10 + modifier(Ability::Wisdom);
+    }
+
+    void Character::addCondition(std::string condition)
+    {
+        if (condition.empty())
+            return;
+        if (!hasCondition(condition))
+            m_conditions.push_back(std::move(condition));
+    }
+
+    void Character::removeCondition(const std::string &condition)
+    {
+        m_conditions.erase(
+            std::remove(m_conditions.begin(), m_conditions.end(), condition),
+            m_conditions.end());
+    }
+
+    bool Character::hasCondition(const std::string &condition) const
+    {
+        return std::find(m_conditions.begin(), m_conditions.end(), condition) != m_conditions.end();
+    }
+
+    void Character::clearConditions()
+    {
+        m_conditions.clear();
+    }
+
 } // namespace dnd::entities

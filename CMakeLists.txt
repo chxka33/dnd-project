@@ -85,11 +85,14 @@ add_custom_command(TARGET dnd_project POST_BUILD
 # Юнит-тесты (Catch2): cmake -DDND_BUILD_TESTS=ON ..
 option(DND_BUILD_TESTS "Build unit tests" OFF)
 if(DND_BUILD_TESTS)
-    FetchContent_Declare(Catch2
-        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
-        GIT_TAG        v3.5.4
-        GIT_SHALLOW    TRUE)
-    FetchContent_MakeAvailable(Catch2)
+    find_package(Catch2 3 QUIET)
+    if(NOT Catch2_FOUND)
+        FetchContent_Declare(Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG        v3.5.4
+            GIT_SHALLOW    TRUE)
+        FetchContent_MakeAvailable(Catch2)
+    endif()
 
     enable_testing()
     file(GLOB DND_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
