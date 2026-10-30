@@ -7,6 +7,51 @@
 namespace dnd::scenario
 {
 
+    void ScenarioGraph::addEnemy(EnemyTemplate enemy)
+    {
+        if (enemy.id.empty())
+            throw std::invalid_argument("Enemy id must not be empty");
+        for (auto &e : enemies)
+        {
+            if (e.id == enemy.id)
+            {
+                e = std::move(enemy);
+                return;
+            }
+        }
+        enemies.push_back(std::move(enemy));
+    }
+
+    bool ScenarioGraph::removeEnemy(const std::string &id)
+    {
+        const auto it = std::find_if(enemies.begin(), enemies.end(),
+                                     [&](const EnemyTemplate &e) { return e.id == id; });
+        if (it == enemies.end())
+            return false;
+        enemies.erase(it);
+        return true;
+    }
+
+    EnemyTemplate *ScenarioGraph::findEnemy(const std::string &id)
+    {
+        for (auto &e : enemies)
+        {
+            if (e.id == id)
+                return &e;
+        }
+        return nullptr;
+    }
+
+    const EnemyTemplate *ScenarioGraph::findEnemy(const std::string &id) const
+    {
+        for (const auto &e : enemies)
+        {
+            if (e.id == id)
+                return &e;
+        }
+        return nullptr;
+    }
+
     Node &ScenarioGraph::add(std::unique_ptr<Node> node)
     {
         if (!node)

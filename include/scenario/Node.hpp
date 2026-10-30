@@ -32,19 +32,43 @@ namespace dnd::scenario
         Charisma
     };
 
+    /// Тип испытания в узле: проверка навыка или спасбросок.
+    enum class CheckType
+    {
+        SkillCheck,  ///< обычная проверка характеристики / навыка
+        SavingThrow  ///< спасбросок (от ловушки, заклинания и т.д.)
+    };
+
     // Преобразования для сериализации (.dndsc) и отображения в UI.
     const char *toString(NodeType type);
     const char *toString(Ability ability);
+    const char *toString(CheckType type);
     std::optional<NodeType> nodeTypeFromString(const std::string &s);
     std::optional<Ability> abilityFromString(const std::string &s);
+    std::optional<CheckType> checkTypeFromString(const std::string &s);
 
-    /// Проверка навыка, привязанная к узлу: бросок d20 + модификатор против DC.
-    /// Сам бросок и подсчёт исхода делает симулятор (Ярошук) — здесь только параметры.
-    struct SkillCheck
+    /// Испытание (проверка навыка или спасбросок), привязанное к узлу.
+    struct CheckDefinition
     {
+        CheckType type = CheckType::SkillCheck;
         Ability ability = Ability::Strength;
         int dc = 10;       ///< Класс Сложности (в D&D обычно 1..30)
         std::string skill; ///< необязательно: "Stealth", "Perception", ...
+    };
+    using SkillCheck = CheckDefinition; ///< для полной обратной совместимости со старым кодом
+
+    /// Предмет в наградах узла сценария.
+    struct LootItem
+    {
+        std::string name;
+        int quantity = 1;
+    };
+
+    /// Награды и сокровища в узле (золото и предметы).
+    struct Loot
+    {
+        int gold = 0;
+        std::vector<LootItem> items;
     };
 
     /// Медиаданные узла. Пути относительны корня ассетов (ResourceManager::assetRoot()).
@@ -93,11 +117,16 @@ namespace dnd::scenario
         const NodeId &id() const { return m_id; }
 
         // Общие данные узла. Публичные поля: их напрямую редактирует GUI редактора.
-        std::string title;                       ///< короткое название (для нелинейного сюжета)
-        std::string text;                        ///< текст, который читает Мастер/игроки
-        NodeMedia media;                         ///< карта, арт
-        std::optional<SkillCheck> skillCheck;    ///< проверка навыка при входе в узел
-        EditorPosition position;                 ///< положение в редакторе
+        std::string title;                          ///< название сцены
+        std::string summary;                        ///< краткое саммари для карты сценария
+        std::string text;                           ///< художественный текст (для зачитывания игрокам)
+        std::string dmNotes;                        ///< секретные заметки и подсказки Мастера
+        NodeMedia media;                            ///< карта, арт
+        std::optional<CheckDefinition> check;       ///< проверка навыка / спасбросок при входе в узел
+        std::optional<CheckDefinition> &skillCheck; ///< ссылка для совместимости со старым кодом
+        std::optional<Loot> loot;                   ///< сокровища и награды в узле
+        std::vector<std::string> enemyIds;          ///< ID привязанных врагов из бестиария сценария
+        EditorPosition position;                    ///< положение в редакторе
 
     private:
         const NodeId m_id;

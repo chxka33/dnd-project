@@ -28,6 +28,17 @@ namespace dnd::scenario
         std::string message;
     };
 
+    /// Шаблон противника из каталога бестиария сценария.
+    struct EnemyTemplate
+    {
+        std::string id;          ///< уникальный идентификатор: "goblin_archer"
+        std::string name;        ///< имя монстра: "Гоблин-лучник"
+        int armorClass = 13;     ///< Класс Доспеха (AC)
+        int maxHp = 7;           ///< максимальное HP
+        int currentHp = 7;       ///< текущее HP
+        int initiativeBonus = 2; ///< бонус инициативы
+    };
+
     /// Нелинейный сюжет сценария: владеет узлами и знает стартовый узел.
     /// Узлы хранятся в порядке добавления (стабильный порядок для редактора и .dndsc).
     class ScenarioGraph
@@ -35,6 +46,13 @@ namespace dnd::scenario
     public:
         std::string title;
         std::string description;
+
+        // ------------------------------------------------------------ бестиарий
+        std::vector<EnemyTemplate> enemies;
+        void addEnemy(EnemyTemplate enemy);
+        bool removeEnemy(const std::string &id);
+        EnemyTemplate *findEnemy(const std::string &id);
+        const EnemyTemplate *findEnemy(const std::string &id) const;
 
         // ------------------------------------------------------------ узлы
         /// Добавляет узел. Пустой или повторяющийся id -> std::invalid_argument.

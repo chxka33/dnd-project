@@ -16,7 +16,7 @@ namespace dnd::scenario
     {
     public:
         /// Текущая версия формата файла .dndsc.
-        static constexpr int kCurrentFormatVersion = 1;
+        static constexpr int kCurrentFormatVersion = 2;
 
         /// Сериализует нелинейный сюжет в объект nlohmann::json.
         static nlohmann::json toJson(const ScenarioGraph &graph);
