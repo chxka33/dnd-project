@@ -2,6 +2,7 @@
 
 #include "core/ResourceManager.hpp"
 #include "core/StateManager.hpp"
+#include "entities/Roster.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 
@@ -14,6 +15,7 @@ namespace dnd::core
         sf::RenderWindow &window;
         ResourceManager &resources;
         StateManager &states;
+        entities::Roster &roster; ///< персонажи текущей сессии (общие для всех экранов)
     };
 
     struct AppConfig
@@ -54,6 +56,7 @@ namespace dnd::core
         sf::RenderWindow m_window;
         ResourceManager m_resources;
         StateManager m_states;
+        entities::Roster m_roster;
         AppContext m_context;
     };
 

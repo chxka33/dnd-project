@@ -21,11 +21,16 @@ namespace dnd::core
                      ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
                          ImGuiWindowFlags_NoMove);
         ImGui::SetWindowFontScale(6.f);
-        const ImVec2 button(-1.f, window.getSize().y / (1.5 * 3.4));
+        // 5 кнопок делят всю высоту окна поровну (без полосы прокрутки).
+        const float buttonCount = 5.f;
+        const ImVec2 button(-1.f, (ImGui::GetContentRegionAvail().y -
+                                   ImGui::GetStyle().ItemSpacing.y * (buttonCount - 1.f)) / buttonCount);
         if (ImGui::Button("Scenario Editor", button))
             context().states.requestPush(StateId::Editor);
         if (ImGui::Button("Game Simulator", button))
             context().states.requestPush(StateId::Simulator);
+        if (ImGui::Button("Characters", button))
+            context().states.requestPush(StateId::Characters);
         if (ImGui::Button("Options", button))
             context().states.requestPush(StateId::Options);
         if (ImGui::Button("Quit", button))
