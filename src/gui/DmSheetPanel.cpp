@@ -17,12 +17,18 @@ namespace dnd::gui
     {
         const ImVec4 kBad(0.90f, 0.30f, 0.30f, 1.f);
         const ImVec4 kMuted(0.65f, 0.65f, 0.65f, 1.f);
+        const ImVec4 kLoot(0.95f, 0.80f, 0.35f, 1.f);
 
-        // "L1 2/4  L2 3/3" — компактная сводка ячеек заклинаний.
+        // "DC 13  L1 2/4  L2 3/3" — компактная сводка заклинаний: СЛ и ячейки.
         std::string slotsSummary(const Character &c)
         {
             const SpellSlots &slots = c.spellSlots();
+            if (!slots.hasAny())
+                return "-";
+
             std::string text;
+            if (const auto dc = c.spellSaveDc())
+                text = "DC " + std::to_string(*dc);
             for (int level = 1; level <= SpellSlots::kMaxSpellLevel; ++level)
             {
                 if (slots.max(level) == 0)
@@ -32,7 +38,31 @@ namespace dnd::gui
                               slots.current(level), slots.max(level));
                 text += part;
             }
-            return text.empty() ? "-" : text;
+            return text;
+        }
+
+        // "50 gp, Potion of Healing x2, Longsword"
+        std::string lootSummary(const scenario::Loot &loot)
+        {
+            std::string text;
+            if (loot.gold > 0)
+                text = std::to_string(loot.gold) + " gp";
+            for (const scenario::LootItem &item : loot.items)
+            {
+                if (item.quantity <= 0 || item.name.empty())
+                    continue;
+                if (!text.empty())
+                    text += ", ";
+                text += item.name;
+                if (item.quantity > 1)
+                    text += " x" + std::to_string(item.quantity);
+            }
+            return text;
+        }
+
+        bool lootIsEmpty(const scenario::Loot &loot)
+        {
+            return lootSummary(loot).empty();
         }
     } // namespace
 
@@ -42,7 +72,7 @@ namespace dnd::gui
 
         if (roster.empty())
         {
-            ImGui::TextWrapped("The roster is empty. Use \"Add character\" or \"Add demo party\" above.");
+            ImGui::TextWrapped("The roster is empty. Use \"Add character\" above.");
             return openSheet;
         }
 
@@ -55,7 +85,8 @@ namespace dnd::gui
         ImGui::SameLine();
         if (ImGui::Button("Long rest (all players)"))
             roster.longRestPlayers();
-        ImGui::TextColored(kMuted, "Dmg / Heal apply \"Amount\" to that character.");
+        ImGui::TextColored(kMuted, "-HP / +HP apply \"Amount\" to that character.");
+        drawLootBanner();
 
         ImGui::SeparatorText("Players");
         drawSide(roster, Side::Player, openSheet);
@@ -77,6 +108,22 @@ namespace dnd::gui
         return openSheet;
     }
 
+    int DmSheetPanel::takeLootRecipient()
+    {
+        const int recipient = m_lootRecipient;
+        m_lootRecipient = -1;
+        return recipient;
+    }
+
+    void DmSheetPanel::drawLootBanner()
+    {
+        if (m_loot && !lootIsEmpty(*m_loot))
+            ImGui::TextColored(kLoot, "Scene loot: %s  -  press \"Loot\" on a hero to give it.",
+                               lootSummary(*m_loot).c_str());
+        if (!m_status.empty())
+            ImGui::TextColored(kMuted, "%s", m_status.c_str());
+    }
+
     void DmSheetPanel::drawSide(Roster &roster, Side side, int &openSheet)
     {
         if (roster.count(side) == 0)
@@ -85,21 +132,24 @@ namespace dnd::gui
             return;
         }
 
+        // Лут получают только герои; у противников кнопки нет.
+        const bool canLoot = side == Side::Player && m_loot && !lootIsEmpty(*m_loot);
+
         ImGui::PushID(static_cast<int>(side));
         if (ImGui::BeginTable("table", 10,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg |
                                   ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_Resizable))
         {
-            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 2.f);
-            ImGui::TableSetupColumn("Class", ImGuiTableColumnFlags_WidthStretch, 1.6f);
-            ImGui::TableSetupColumn("Lv", ImGuiTableColumnFlags_WidthStretch, 0.6f);
-            ImGui::TableSetupColumn("HP", ImGuiTableColumnFlags_WidthStretch, 3.f);
-            ImGui::TableSetupColumn("AC", ImGuiTableColumnFlags_WidthStretch, 0.6f);
-            ImGui::TableSetupColumn("Init", ImGuiTableColumnFlags_WidthStretch, 0.7f);
-            ImGui::TableSetupColumn("Prof", ImGuiTableColumnFlags_WidthStretch, 0.7f);
-            ImGui::TableSetupColumn("Spell DC", ImGuiTableColumnFlags_WidthStretch, 1.f);
-            ImGui::TableSetupColumn("Slots", ImGuiTableColumnFlags_WidthStretch, 3.f);
-            ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthStretch, 3.f);
+            ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthStretch, 1.8f);
+            ImGui::TableSetupColumn("Class", ImGuiTableColumnFlags_WidthStretch, 1.5f);
+            ImGui::TableSetupColumn("HP", ImGuiTableColumnFlags_WidthStretch, 2.6f);
+            ImGui::TableSetupColumn("AC", ImGuiTableColumnFlags_WidthStretch, 0.55f);
+            ImGui::TableSetupColumn("PP", ImGuiTableColumnFlags_WidthStretch, 0.55f);
+            ImGui::TableSetupColumn("Init", ImGuiTableColumnFlags_WidthStretch, 0.65f);
+            ImGui::TableSetupColumn("Spells", ImGuiTableColumnFlags_WidthStretch, 2.4f);
+            ImGui::TableSetupColumn("Conditions", ImGuiTableColumnFlags_WidthStretch, 2.4f);
+            ImGui::TableSetupColumn("Equipment", ImGuiTableColumnFlags_WidthStretch, 2.6f);
+            ImGui::TableSetupColumn("Actions", ImGuiTableColumnFlags_WidthStretch, 4.2f);
             ImGui::TableHeadersRow();
 
             for (std::size_t i = 0; i < roster.size(); ++i)
@@ -119,32 +169,70 @@ namespace dnd::gui
                     ImGui::TextColored(kBad, "%s (down)", c.name.c_str());
                 else
                     ImGui::TextUnformatted(c.name.c_str());
+
                 ImGui::TableSetColumnIndex(1);
-                ImGui::TextUnformatted(c.classData().displayName);
+                ImGui::Text("%s %d", c.classData().displayName, c.level());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Proficiency bonus %+d", c.proficiencyBonus());
+
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%d", c.level());
-                ImGui::TableSetColumnIndex(3);
                 hpBar(c);
-                ImGui::TableSetColumnIndex(4);
+
+                ImGui::TableSetColumnIndex(3);
                 ImGui::Text("%d", c.armorClass());
+
+                // Пассивная внимательность — для скрытых проверок за ширмой.
+                ImGui::TableSetColumnIndex(4);
+                ImGui::Text("%d", c.passivePerception());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("Passive Perception: 10 + WIS %+d%s",
+                                      c.modifier(Ability::Wisdom),
+                                      c.isProficientInPerception() ? " + proficiency" : "");
+
                 ImGui::TableSetColumnIndex(5);
                 ImGui::Text("%+d", c.initiativeModifier());
+
                 ImGui::TableSetColumnIndex(6);
-                ImGui::Text("%+d", c.proficiencyBonus());
-                ImGui::TableSetColumnIndex(7);
-                if (const auto dc = c.spellSaveDc(); dc && c.spellSlots().hasAny())
-                    ImGui::Text("%d", *dc);
-                else
-                    ImGui::TextUnformatted("-");
-                ImGui::TableSetColumnIndex(8);
                 ImGui::TextUnformatted(slotsSummary(c).c_str());
 
+                ImGui::TableSetColumnIndex(7);
+                if (c.conditions().empty())
+                    ImGui::TextColored(kMuted, "-");
+                else
+                    conditionBadges(c);
+
+                ImGui::TableSetColumnIndex(8);
+                ImGui::TextWrapped("%s", equipmentSummary(c).c_str());
+                if (ImGui::IsItemHovered())
+                    inventoryTooltip(c);
+
                 ImGui::TableSetColumnIndex(9);
-                if (ImGui::SmallButton("Dmg"))
+                if (ImGui::SmallButton("-HP"))
                     c.applyDamage(m_amount);
                 ImGui::SameLine();
-                if (ImGui::SmallButton("Heal"))
+                if (ImGui::SmallButton("+HP"))
                     c.heal(m_amount);
+                ImGui::SameLine();
+                if (ImGui::SmallButton("Cond"))
+                    ImGui::OpenPopup("conditions");
+                if (ImGui::BeginPopup("conditions"))
+                {
+                    conditionMenu(c);
+                    ImGui::EndPopup();
+                }
+                if (canLoot)
+                {
+                    ImGui::SameLine();
+                    if (ImGui::SmallButton("Loot"))
+                    {
+                        const LootResult got = c.receiveLoot(*m_loot);
+                        m_lootRecipient = static_cast<int>(i);
+                        char msg[160];
+                        std::snprintf(msg, sizeof(msg), "%s received %d gp and %d item(s).",
+                                      c.name.c_str(), got.gold, got.itemUnits);
+                        m_status = msg;
+                    }
+                }
                 ImGui::SameLine();
                 if (ImGui::SmallButton("Sheet"))
                     openSheet = static_cast<int>(i);

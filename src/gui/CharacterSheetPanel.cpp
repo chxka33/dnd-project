@@ -62,7 +62,7 @@ namespace dnd::gui
     {
         if (roster.empty())
         {
-            ImGui::TextWrapped("The roster is empty. Use \"Add character\" or \"Add demo party\" above.");
+            ImGui::TextWrapped("The roster is empty. Use \"Add character\" above.");
             return;
         }
 
@@ -110,6 +110,11 @@ namespace dnd::gui
         else
             ImGui::Text("Max HP: %d  (d%d per level, CON %+d)", c.maxHp(), c.hitDieSize(),
                         c.modifier(Ability::Constitution));
+        if (m_mode == Mode::Play)
+        {
+            ImGui::SeparatorText("Conditions");
+            drawConditions(c);
+        }
         if (c.isSpellcaster())
         {
             ImGui::SeparatorText("Spellcasting");
@@ -205,11 +210,12 @@ namespace dnd::gui
 
     void CharacterSheetPanel::drawCombatStats(Character &c)
     {
-        if (ImGui::BeginTable("combat", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame))
+        if (ImGui::BeginTable("combat", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingStretchSame))
         {
             ImGui::TableSetupColumn("Armor Class");
             ImGui::TableSetupColumn("Initiative");
             ImGui::TableSetupColumn("Proficiency");
+            ImGui::TableSetupColumn("Passive Perception");
             ImGui::TableSetupColumn("Hit die");
             ImGui::TableSetupColumn("Carrying (lb)");
             ImGui::TableHeadersRow();
@@ -221,8 +227,10 @@ namespace dnd::gui
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("%+d", c.proficiencyBonus());
             ImGui::TableSetColumnIndex(3);
-            ImGui::Text("%dd%d", c.level(), c.hitDieSize());
+            ImGui::Text("%d", c.passivePerception());
             ImGui::TableSetColumnIndex(4);
+            ImGui::Text("%dd%d", c.level(), c.hitDieSize());
+            ImGui::TableSetColumnIndex(5);
             ImGui::TextColored(c.isEncumbered() ? kBad : ImGui::GetStyleColorVec4(ImGuiCol_Text),
                                "%.1f / %.0f", c.inventory().totalWeight(), c.carryCapacity());
             ImGui::EndTable();
@@ -236,6 +244,12 @@ namespace dnd::gui
         int bonus = c.miscArmorClassBonus();
         if (ImGui::InputInt("Misc AC bonus", &bonus))
             c.setMiscArmorClassBonus(std::clamp(bonus, -10, 10));
+
+        // Пассивная внимательность = 10 + МДР, плюс бонус владения, если владеет Восприятием.
+        bool perceptionProficient = c.isProficientInPerception();
+        if (ImGui::Checkbox("Proficient in Perception (adds proficiency bonus to Passive Perception)",
+                            &perceptionProficient))
+            c.setPerceptionProficient(perceptionProficient);
     }
 
     void CharacterSheetPanel::drawHealth(Character &c)
@@ -293,6 +307,36 @@ namespace dnd::gui
         }
         if (!m_status.empty())
             ImGui::TextColored(kMuted, "%s", m_status.c_str());
+    }
+
+    void CharacterSheetPanel::drawConditions(Character &c)
+    {
+        if (c.conditions().empty())
+            ImGui::TextColored(kMuted, "No active conditions.");
+        else
+            conditionBadges(c);
+
+        if (ImGui::Button("Edit conditions"))
+            ImGui::OpenPopup("conditions");
+        if (ImGui::BeginPopup("conditions"))
+        {
+            conditionMenu(c);
+            ImGui::EndPopup();
+        }
+
+        // Собственное состояние (например, "Blessed"), которого нет в каталоге.
+        inputText("Custom##condition", m_customCondition);
+        ImGui::SameLine();
+        if (ImGui::Button("Add##condition"))
+        {
+            const std::size_t first = m_customCondition.find_first_not_of(" \t");
+            if (first != std::string::npos)
+            {
+                const std::size_t last = m_customCondition.find_last_not_of(" \t");
+                c.addCondition(m_customCondition.substr(first, last - first + 1));
+            }
+            m_customCondition.clear();
+        }
     }
 
     void CharacterSheetPanel::drawSpells(Character &c)
@@ -353,6 +397,12 @@ namespace dnd::gui
     void CharacterSheetPanel::drawInventory(Character &c)
     {
         Inventory &inv = c.inventory();
+
+        int gold = inv.gold();
+        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10.f);
+        if (ImGui::InputInt("Gold (gp)", &gold, 1, 10))
+            inv.setGold(gold);
+
         if (inv.empty())
         {
             ImGui::TextColored(kMuted, "Inventory is empty.");

@@ -1,5 +1,7 @@
 #include "entities/Character.hpp"
 
+#include "entities/ItemPresets.hpp"
+
 #include <algorithm>
 #include <utility>
 
@@ -170,7 +172,7 @@ namespace dnd::entities
 
     int Character::passivePerception() const
     {
-        return 10 + modifier(Ability::Wisdom);
+        return 10 + modifier(Ability::Wisdom) + (m_perceptionProficient ? proficiencyBonus() : 0);
     }
 
     void Character::addCondition(std::string condition)
@@ -196,6 +198,38 @@ namespace dnd::entities
     void Character::clearConditions()
     {
         m_conditions.clear();
+    }
+
+    bool Character::toggleCondition(const std::string &condition)
+    {
+        if (condition.empty())
+            return false;
+        if (hasCondition(condition))
+        {
+            removeCondition(condition);
+            return false;
+        }
+        addCondition(condition);
+        return true;
+    }
+
+    LootResult Character::receiveLoot(const scenario::Loot &loot)
+    {
+        LootResult result;
+        if (loot.gold > 0)
+        {
+            const int before = m_inventory.gold();
+            m_inventory.addGold(loot.gold);
+            result.gold = m_inventory.gold() - before;
+        }
+        for (const scenario::LootItem &lootItem : loot.items)
+        {
+            if (lootItem.quantity <= 0 || lootItem.name.empty())
+                continue;
+            m_inventory.add(itemFromName(lootItem.name, lootItem.quantity));
+            result.itemUnits += lootItem.quantity;
+        }
+        return result;
     }
 
 } // namespace dnd::entities

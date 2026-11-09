@@ -11,4 +11,8 @@ namespace dnd::entities
     /// Список создаётся один раз и не меняется.
     const std::vector<Item> &itemPresets();
 
+    /// Предмет по названию: если оно есть в каталоге — копия с параметрами (доспех с КД, оружие
+    /// с уроном), иначе обычный предмет Misc. Нужен для наград сценария, где указано только название.
+    Item itemFromName(const std::string &name, int quantity = 1);
+
 } // namespace dnd::entities

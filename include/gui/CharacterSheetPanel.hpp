@@ -8,7 +8,7 @@ namespace dnd::gui
 {
 
     /// Интерактивный лист персонажа: имя и уровень, характеристики, КД, здоровье,
-    /// ячейки заклинаний и инвентарь. Рисуется внутри уже открытого окна ImGui.
+    /// пассивная внимательность, ячейки заклинаний, состояния, золото и инвентарь. Рисуется внутри уже открытого окна ImGui.
     ///
     /// Два режима:
     ///  - Setup — подготовка к игре (экран Characters): правка имени, уровня, характеристик,
@@ -38,6 +38,7 @@ namespace dnd::gui
         void drawAbilities(entities::Character &c);
         void drawCombatStats(entities::Character &c);
         void drawHealth(entities::Character &c);
+        void drawConditions(entities::Character &c);
         void drawSpells(entities::Character &c);
         void drawInventory(entities::Character &c);
         void drawAddItem(entities::Character &c);
@@ -50,6 +51,9 @@ namespace dnd::gui
         // Здоровье
         int m_amount = 1;
         std::string m_status;
+
+        // Состояния: собственный эффект Мастера
+        std::string m_customCondition;
 
         // Добавление предмета: каталог
         int m_presetIndex = 0;

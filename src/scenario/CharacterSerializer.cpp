@@ -142,6 +142,8 @@ namespace dnd::scenario
         j["tempHp"] = character.temporaryHp();
         j["miscAcBonus"] = character.miscArmorClassBonus();
         j["conditions"] = character.conditions();
+        j["gold"] = character.inventory().gold();
+        j["perceptionProficient"] = character.isProficientInPerception();
 
         // Инвентарь
         nlohmann::json itemsArr = nlohmann::json::array();
@@ -205,6 +207,13 @@ namespace dnd::scenario
 
             if (j.contains("miscAcBonus") && j["miscAcBonus"].is_number_integer())
                 character->setMiscArmorClassBonus(j["miscAcBonus"].get<int>());
+
+            // Необязательные поля: в старых .dndch/.dndsav их нет (золото 0, без владения Восприятием).
+            if (j.contains("gold") && j["gold"].is_number_integer())
+                character->inventory().setGold(j["gold"].get<int>());
+
+            if (j.contains("perceptionProficient") && j["perceptionProficient"].is_boolean())
+                character->setPerceptionProficient(j["perceptionProficient"].get<bool>());
 
             if (j.contains("conditions") && j["conditions"].is_array())
             {

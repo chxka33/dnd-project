@@ -45,7 +45,7 @@ namespace dnd::core
     {
         if (roster.empty())
         {
-            ImGui::TextWrapped("No characters yet. Add a character or the demo party.");
+            ImGui::TextWrapped("No characters yet. Use \"Add character\" above.");
             return;
         }
 
@@ -90,9 +90,6 @@ namespace dnd::core
         ImGui::SameLine();
         if (ImGui::Button("Add character"))
             m_addDialog.open();
-        ImGui::SameLine();
-        if (ImGui::Button("Add demo party"))
-            roster.addDemoParty();
         ImGui::SameLine();
         ImGui::TextUnformatted("UI scale");
         ImGui::SameLine();

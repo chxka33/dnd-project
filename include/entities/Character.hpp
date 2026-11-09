@@ -2,14 +2,23 @@
 
 #include "entities/AbilityScores.hpp"
 #include "entities/CharacterClass.hpp"
+#include "entities/Conditions.hpp"
 #include "entities/Inventory.hpp"
 #include "entities/SpellSlots.hpp"
 
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace dnd::entities
 {
+
+    /// Что реально получил персонаж из наград узла сценария.
+    struct LootResult
+    {
+        int gold = 0;      ///< выдано золота
+        int itemUnits = 0; ///< выдано штук предметов (в сумме по всем строкам награды)
+    };
 
     /// Персонаж игрока (или противника): класс, уровень, характеристики, инвентарь и
     /// всё, что из них автоматически рассчитывается — модификаторы, бонус владения,
@@ -102,8 +111,11 @@ namespace dnd::entities
         std::optional<int> spellAttackBonus() const;
 
         // --- Пассивные показатели ----------------------------------------------
-        /// Пассивная внимательность: 10 + модификатор Мудрости.
+        /// Пассивная внимательность: 10 + модификатор Мудрости (+ бонус владения, если персонаж
+        /// владеет навыком Восприятия — см. setPerceptionProficient).
         int passivePerception() const;
+        bool isProficientInPerception() const { return m_perceptionProficient; }
+        void setPerceptionProficient(bool proficient) { m_perceptionProficient = proficient; }
 
         // --- Состояния (Conditions) --------------------------------------------
         const std::vector<std::string> &conditions() const { return m_conditions; }
@@ -112,6 +124,14 @@ namespace dnd::entities
         void removeCondition(const std::string &condition);
         bool hasCondition(const std::string &condition) const;
         void clearConditions();
+        /// Снимает состояние, если оно есть, иначе накладывает. Возвращает true, если состояние
+        /// теперь активно. Пустое название игнорируется (возвращает false).
+        bool toggleCondition(const std::string &condition);
+
+        // --- Награды ----------------------------------------------------------
+        /// Забирает награду узла: золото уходит в кошелёк, предметы — в инвентарь (названия из каталога
+        /// получают настоящие параметры — доспех КД, оружие урон). Строки с quantity <= 0 пропускаются.
+        LootResult receiveLoot(const scenario::Loot &loot);
 
         // --- Отдых -------------------------------------------------------------
         /// Длинный отдых: полные HP, все ячейки заклинаний, временные HP сбрасываются.
@@ -130,6 +150,7 @@ namespace dnd::entities
         int m_currentHp = 0;
         int m_tempHp = 0;
         int m_miscAcBonus = 0;
+        bool m_perceptionProficient = false;
         std::vector<std::string> m_conditions;
     };
 

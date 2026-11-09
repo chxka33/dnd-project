@@ -200,6 +200,31 @@ TEST_CASE("CharacterSerializer: сохранение и загрузка пер�
     CHECK(loaded->passivePerception() == 13);
 }
 
+TEST_CASE("CharacterSerializer: золото и владение Восприятием сохраняются", "[scenario][character_serializer]")
+{
+    Character hero("Следопыт", CharacterClass::Ranger, 5, AbilityScores(10, 16, 14, 12, 14, 8));
+    hero.inventory().setGold(321);
+    hero.setPerceptionProficient(true);
+    CHECK(hero.passivePerception() == 10 + 2 + 3);
+
+    std::string error;
+    auto loaded = CharacterSerializer::fromJson(CharacterSerializer::toJson(hero), &error);
+    REQUIRE(loaded != nullptr);
+    CHECK(loaded->inventory().gold() == 321);
+    CHECK(loaded->isProficientInPerception());
+    CHECK(loaded->passivePerception() == 15);
+
+    // Старые файлы без этих полей читаются: золото 0, владения нет
+    nlohmann::json legacy = CharacterSerializer::toJson(hero);
+    legacy.erase("gold");
+    legacy.erase("perceptionProficient");
+    auto old = CharacterSerializer::fromJson(legacy, &error);
+    REQUIRE(old != nullptr);
+    CHECK(old->inventory().gold() == 0);
+    CHECK_FALSE(old->isProficientInPerception());
+    CHECK(old->passivePerception() == 12);
+}
+
 TEST_CASE("SessionSerializer: сохранение и загрузка сессии (.dndsav)", "[scenario][session_serializer]")
 {
     SessionSaveData session;

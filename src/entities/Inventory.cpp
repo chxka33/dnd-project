@@ -1,5 +1,7 @@
 #include "entities/Inventory.hpp"
 
+#include <algorithm>
+#include <limits>
 #include <utility>
 
 namespace dnd::entities
@@ -111,6 +113,29 @@ namespace dnd::entities
         for (const Item &item : m_items)
             total += item.totalWeight();
         return total;
+    }
+
+    void Inventory::setGold(int amount)
+    {
+        m_gold = std::max(0, amount);
+    }
+
+    void Inventory::addGold(int amount)
+    {
+        if (amount <= 0)
+            return;
+        // Без переполнения int: при достижении предела золото просто остаётся максимальным.
+        m_gold = amount > std::numeric_limits<int>::max() - m_gold
+                     ? std::numeric_limits<int>::max()
+                     : m_gold + amount;
+    }
+
+    bool Inventory::spendGold(int amount)
+    {
+        if (amount <= 0 || amount > m_gold)
+            return false;
+        m_gold -= amount;
+        return true;
     }
 
 } // namespace dnd::entities

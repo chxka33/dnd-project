@@ -8,7 +8,7 @@
 namespace dnd::entities
 {
 
-    /// Инвентарь персонажа. Предметы адресуются индексом (удобно для списка в ImGui).
+    /// Инвентарь персонажа: предметы и золото. Предметы адресуются индексом (удобно для списка в ImGui).
     /// Индексы действительны до следующего add/remove.
     class Inventory
     {
@@ -44,6 +44,16 @@ namespace dnd::entities
 
         double totalWeight() const;
 
+        // --- Золото ------------------------------------------------------------
+        /// Золотые монеты персонажа (gp). Вес монет не учитывается.
+        int gold() const { return m_gold; }
+        /// Отрицательное значение обрезается до 0.
+        void setGold(int amount);
+        /// Прибавляет золото; amount <= 0 игнорируется. Результат ограничен INT_MAX.
+        void addGold(int amount);
+        /// Тратит золото. false (и ничего не меняется), если amount <= 0 или денег не хватает.
+        bool spendGold(int amount);
+
         /// Грузоподъёмность по правилам D&D 5e: 15 × значение Силы (в фунтах).
         static double carryCapacity(int strengthScore) { return 15.0 * strengthScore; }
 
@@ -51,6 +61,7 @@ namespace dnd::entities
         const Item *equippedOfType(ItemType type) const;
 
         std::vector<Item> m_items;
+        int m_gold = 0;
     };
 
 } // namespace dnd::entities

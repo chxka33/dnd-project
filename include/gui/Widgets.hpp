@@ -22,6 +22,26 @@ namespace dnd::gui
     /// Подпись персонажа для списков: "Thorin - Fighter 3".
     std::string characterLabel(const entities::Character &c);
 
+    /// Цвет бейджа состояния: тяжёлые (без сознания, паралич...) — красный, прочие стандартные
+    /// эффекты — оранжевый, собственные состояния Мастера — голубой.
+    ImVec4 conditionColor(const std::string &condition);
+
+    /// Цветные теги состояний персонажа в одну строку с переносом по ширине. Ничего не рисует,
+    /// если состояний нет — вызывающий сам решает, что показать вместо этого.
+    void conditionBadges(const entities::Character &c);
+
+    /// Содержимое выпадающего окна «Состояния»: флажки для всех стандартных состояний D&D
+    /// и для собственных состояний персонажа. Вызывать внутри BeginPopup. Возвращает true,
+    /// если набор состояний изменился в этом кадре.
+    bool conditionMenu(entities::Character &c);
+
+    /// Экипированные доспех, щит и оружие через запятую ("Chain Mail, Shield, Longsword") или "-".
+    std::string equipmentSummary(const entities::Character &c);
+
+    /// Всплывающая подсказка со всем инвентарём и золотом. Вызывать после виджета, над которым
+    /// навели мышь (внутри if (ImGui::IsItemHovered())).
+    void inventoryTooltip(const entities::Character &c);
+
     /// Модальное окно подтверждения удаления. Вызывать каждый кадр в том же ID-контексте,
     /// где был OpenPopup(popupId). Возвращает true один раз — когда пользователь нажал "Remove".
     bool confirmRemovePopup(const char *popupId, const std::string &name);

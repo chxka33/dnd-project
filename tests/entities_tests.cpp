@@ -454,3 +454,137 @@ TEST_CASE("Демонстрационная группа: расчёты сог�
     for (const RosterEntry &e : roster.entries())
         CHECK_FALSE(e.character.isEncumbered());
 }
+
+TEST_CASE("Пассивная внимательность: 10 + МДР, плюс бонус владения при владении Восприятием", "[entities][character][perception]")
+{
+    // МДР 14 (+2), 5 уровень (владение +3)
+    Character c("Следопыт", CharacterClass::Ranger, 5, AbilityScores(10, 14, 12, 10, 14, 10));
+    CHECK(c.passivePerception() == 12);
+
+    c.setPerceptionProficient(true);
+    CHECK(c.isProficientInPerception());
+    CHECK(c.passivePerception() == 15);
+
+    // Бонус владения растёт вместе с уровнем (17 ур. -> +6)
+    c.setLevel(17);
+    CHECK(c.passivePerception() == 10 + 2 + 6);
+
+    // Низкая МДР уменьшает значение
+    Character dull("Тугодум", CharacterClass::Fighter, 1, AbilityScores(10, 10, 10, 10, 6, 10));
+    CHECK(dull.passivePerception() == 8);
+}
+
+TEST_CASE("Состояния: каталог, включение/выключение, дубликаты", "[entities][character][conditions]")
+{
+    CHECK(kStandardConditions.size() == 15);
+    CHECK(isStandardCondition("Poisoned"));
+    CHECK(isStandardCondition("Unconscious"));
+    CHECK(isStandardCondition("Restrained"));
+    CHECK(isStandardCondition("Blinded"));
+    CHECK_FALSE(isStandardCondition("Blessed"));
+    CHECK_FALSE(isStandardCondition("poisoned")); // регистр важен
+
+    Character c("Герой", CharacterClass::Fighter);
+
+    CHECK(c.toggleCondition("Poisoned"));       // наложено
+    CHECK(c.hasCondition("Poisoned"));
+    CHECK_FALSE(c.toggleCondition("Poisoned")); // снято
+    CHECK_FALSE(c.hasCondition("Poisoned"));
+
+    // Своё состояние Мастера тоже работает, а пустое название игнорируется
+    CHECK(c.toggleCondition("Blessed"));
+    CHECK_FALSE(c.toggleCondition(""));
+    CHECK(c.conditions().size() == 1);
+
+    // Повторное addCondition не дублирует
+    c.addCondition("Blessed");
+    c.addCondition("Prone");
+    c.addCondition("Prone");
+    CHECK(c.conditions().size() == 2);
+
+    c.clearConditions();
+    CHECK(c.conditions().empty());
+}
+
+TEST_CASE("Золото инвентаря", "[entities][inventory][gold]")
+{
+    Inventory inv;
+    CHECK(inv.gold() == 0);
+
+    inv.addGold(50);
+    inv.addGold(0);   // игнорируется
+    inv.addGold(-10); // игнорируется
+    CHECK(inv.gold() == 50);
+
+    CHECK(inv.spendGold(20));
+    CHECK(inv.gold() == 30);
+    CHECK_FALSE(inv.spendGold(31)); // не хватает: ничего не меняется
+    CHECK(inv.gold() == 30);
+    CHECK_FALSE(inv.spendGold(0));
+    CHECK_FALSE(inv.spendGold(-5));
+    CHECK(inv.gold() == 30);
+
+    inv.setGold(-100);
+    CHECK(inv.gold() == 0);
+
+    // Защита от переполнения
+    inv.setGold(2147483000);
+    inv.addGold(2000000000);
+    CHECK(inv.gold() == 2147483647);
+}
+
+TEST_CASE("Награда узла: золото и предметы попадают к персонажу", "[entities][character][loot]")
+{
+    Character c("Герой", CharacterClass::Fighter);
+
+    dnd::scenario::Loot loot;
+    loot.gold = 75;
+    loot.items = {{"Potion of Healing", 2}, {"Longsword", 1}, {"Ржавый ключ", 1}, {"Пустышка", 0}};
+
+    const LootResult result = c.receiveLoot(loot);
+    CHECK(result.gold == 75);
+    CHECK(result.itemUnits == 4); // 2 + 1 + 1, строка с quantity 0 пропущена
+    CHECK(c.inventory().gold() == 75);
+
+    // Зелье из каталога стекуется в одну запись и остаётся расходником
+    const std::size_t potion = c.inventory().find("Potion of Healing");
+    REQUIRE(potion < c.inventory().size());
+    CHECK(c.inventory().items()[potion].quantity == 2);
+    CHECK(c.inventory().items()[potion].type == ItemType::Consumable);
+
+    // Меч из каталога получает настоящие параметры оружия
+    const std::size_t sword = c.inventory().find("Longsword");
+    REQUIRE(sword < c.inventory().size());
+    CHECK(c.inventory().items()[sword].type == ItemType::Weapon);
+    REQUIRE(c.inventory().items()[sword].weapon.has_value());
+    CHECK(c.inventory().items()[sword].weapon->damage == "1d8");
+
+    // Неизвестный предмет становится обычным (Misc)
+    const std::size_t key = c.inventory().find("Ржавый ключ");
+    REQUIRE(key < c.inventory().size());
+    CHECK(c.inventory().items()[key].type == ItemType::Misc);
+
+    CHECK(c.inventory().find("Пустышка") == c.inventory().size());
+
+    // Пустая награда ничего не меняет, повторная выдача суммирует золото
+    CHECK(c.receiveLoot(dnd::scenario::Loot{}).gold == 0);
+    c.receiveLoot(loot);
+    CHECK(c.inventory().gold() == 150);
+    CHECK(c.inventory().items()[c.inventory().find("Potion of Healing")].quantity == 4);
+}
+
+TEST_CASE("itemFromName: каталог и запасной вариант", "[entities][items]")
+{
+    const Item chain = itemFromName("Chain Mail", 1);
+    CHECK(chain.type == ItemType::Armor);
+    REQUIRE(chain.armor.has_value());
+    CHECK(chain.armor->baseAc == 16);
+
+    const Item arrows = itemFromName("Arrows (20)", 3);
+    CHECK(arrows.quantity == 3);
+
+    const Item unknown = itemFromName("Загадочный амулет", 2);
+    CHECK(unknown.type == ItemType::Misc);
+    CHECK(unknown.quantity == 2);
+    CHECK(unknown.name == "Загадочный амулет");
+}

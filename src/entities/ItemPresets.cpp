@@ -63,4 +63,18 @@ namespace dnd::entities
         return presets;
     }
 
+    Item itemFromName(const std::string &name, int quantity)
+    {
+        for (const Item &preset : itemPresets())
+        {
+            if (preset.name == name)
+            {
+                Item item = preset;
+                item.quantity = quantity;
+                return item;
+            }
+        }
+        return Item::misc(name, 0.0, quantity);
+    }
+
 } // namespace dnd::entities
