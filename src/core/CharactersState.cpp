@@ -43,33 +43,25 @@ namespace dnd::core
 
     void CharactersState::drawRosterList(entities::Roster &roster)
     {
-        if (roster.empty())
+        // Экран создаёт и настраивает только героев. Противники приходят из сценария
+        // (редактор) или добавляются в бою, поэтому здесь они не показываются.
+        if (roster.count(entities::Side::Player) == 0)
         {
             ImGui::TextWrapped("No characters yet. Use \"Add character\" above.");
             return;
         }
 
-        const entities::Side sides[] = {entities::Side::Player, entities::Side::Enemy};
-        const char *titles[] = {"Players", "Enemies"};
-        for (int s = 0; s < 2; ++s)
+        ImGui::SeparatorText("Party");
+        for (std::size_t i = 0; i < roster.size(); ++i)
         {
-            ImGui::SeparatorText(titles[s]);
-            if (roster.count(sides[s]) == 0)
-            {
-                ImGui::TextDisabled("none");
+            const entities::RosterEntry &e = roster.at(i);
+            if (e.side != entities::Side::Player)
                 continue;
-            }
-            for (std::size_t i = 0; i < roster.size(); ++i)
-            {
-                const entities::RosterEntry &e = roster.at(i);
-                if (e.side != sides[s])
-                    continue;
-                ImGui::PushID(static_cast<int>(i));
-                const std::string label = gui::characterLabel(e.character);
-                if (ImGui::Selectable(label.c_str(), static_cast<int>(i) == m_sheet.selected()))
-                    m_sheet.select(static_cast<int>(i));
-                ImGui::PopID();
-            }
+            ImGui::PushID(static_cast<int>(i));
+            const std::string label = gui::characterLabel(e.character);
+            if (ImGui::Selectable(label.c_str(), static_cast<int>(i) == m_sheet.selected()))
+                m_sheet.select(static_cast<int>(i));
+            ImGui::PopID();
         }
     }
 
@@ -114,7 +106,25 @@ namespace dnd::core
 
         ImGui::SameLine();
         ImGui::BeginChild("character_setup");
-        m_sheet.draw(roster);
+        if (roster.count(entities::Side::Player) > 0)
+        {
+            // Выбранным всегда должен быть герой (противник мог оказаться выбранным после удаления).
+            const int selected = m_sheet.selected();
+            const bool valid = selected >= 0 && selected < static_cast<int>(roster.size()) &&
+                               roster.at(static_cast<std::size_t>(selected)).side == entities::Side::Player;
+            if (!valid)
+            {
+                for (std::size_t i = 0; i < roster.size(); ++i)
+                {
+                    if (roster.at(i).side == entities::Side::Player)
+                    {
+                        m_sheet.select(static_cast<int>(i));
+                        break;
+                    }
+                }
+            }
+            m_sheet.draw(roster);
+        }
         ImGui::EndChild();
 
         const int added = m_addDialog.draw(roster);

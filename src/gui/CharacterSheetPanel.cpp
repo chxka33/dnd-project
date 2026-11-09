@@ -141,7 +141,7 @@ namespace dnd::gui
 
     void CharacterSheetPanel::drawHeader(Roster &roster, Character &c)
     {
-        RosterEntry &entry = roster.at(static_cast<std::size_t>(m_selected));
+        (void)roster;
 
         inputText("Name", c.name);
 
@@ -149,13 +149,7 @@ namespace dnd::gui
         if (ImGui::InputInt("Level", &level))
             c.setLevel(level);
 
-        ImGui::Text("Class: %s   Hit die: d%d   Side:", c.classData().displayName, c.hitDieSize());
-        ImGui::SameLine();
-        int side = entry.side == Side::Player ? 0 : 1;
-        const char *sides[] = {"Player", "Enemy"};
-        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 7.f);
-        if (ImGui::Combo("##side", &side, sides, 2))
-            entry.side = side == 0 ? Side::Player : Side::Enemy;
+        ImGui::Text("Class: %s   Hit die: d%d", c.classData().displayName, c.hitDieSize());
 
         if (ImGui::Button("Level up"))
             c.levelUp();

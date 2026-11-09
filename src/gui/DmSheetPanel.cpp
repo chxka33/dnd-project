@@ -72,7 +72,7 @@ namespace dnd::gui
 
         if (roster.empty())
         {
-            ImGui::TextWrapped("The roster is empty. Use \"Add character\" above.");
+            ImGui::TextWrapped("The roster is empty. Use \"Add character\" on the Characters screen.");
             return openSheet;
         }
 

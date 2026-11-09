@@ -28,7 +28,6 @@ namespace dnd::gui
         std::string m_name = "New Hero";
         int m_classIndex = 4; // Fighter
         int m_level = 1;
-        int m_sideIndex = 0; // Player
         std::array<int, entities::kAbilityCount> m_scores{10, 10, 10, 10, 10, 10};
     };
 

@@ -16,7 +16,6 @@ namespace dnd::gui
         m_name = "New Hero";
         m_classIndex = 4;
         m_level = 1;
-        m_sideIndex = 0;
         m_scores.fill(AbilityScores::kDefaultScore);
     }
 
@@ -53,9 +52,6 @@ namespace dnd::gui
             ImGui::InputInt("Level", &m_level);
             m_level = std::clamp(m_level, Character::kMinLevel, Character::kMaxLevel);
 
-            const char *sides[] = {"Player", "Enemy"};
-            ImGui::Combo("Side", &m_sideIndex, sides, 2);
-
             ImGui::SeparatorText("Ability scores");
             for (std::size_t i = 0; i < kAbilityCount; ++i)
             {
@@ -73,9 +69,9 @@ namespace dnd::gui
                 const std::string name = m_name.empty() ? "Unnamed" : m_name;
                 const AbilityScores scores(m_scores[0], m_scores[1], m_scores[2],
                                            m_scores[3], m_scores[4], m_scores[5]);
+                // Здесь создаются только герои; сторона противников определяется сценарием/боем.
                 addedIndex = static_cast<int>(roster.add(
-                    Character(name, current, m_level, scores),
-                    m_sideIndex == 0 ? Side::Player : Side::Enemy));
+                    Character(name, current, m_level, scores), Side::Player));
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
