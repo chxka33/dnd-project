@@ -1,5 +1,6 @@
 #pragma once
 
+#include "entities/Character.hpp"
 #include "scenario/ChoiceNode.hpp"
 #include "scenario/Node.hpp"
 #include "scenario/RandomNode.hpp"
@@ -29,6 +30,8 @@ namespace dnd::scenario
     };
 
     /// Шаблон противника из каталога бестиария сценария.
+    /// Синхронизирован с моделью персонажа (entities::Character): хранит класс, уровень,
+    /// характеристики и снаряжение, а также боевые показатели (AC, HP, бонус инициативы).
     struct EnemyTemplate
     {
         std::string id;          ///< уникальный идентификатор: "goblin_archer"
@@ -37,6 +40,20 @@ namespace dnd::scenario
         int maxHp = 7;           ///< максимальное HP
         int currentHp = 7;       ///< текущее HP
         int initiativeBonus = 2; ///< бонус инициативы
+
+        entities::CharacterClass characterClass = entities::CharacterClass::Fighter;
+        int level = 1;
+        entities::AbilityScores abilities{};
+        entities::Inventory inventory{};
+
+        /// Собирает полноценного Character (с классом, уровнем, характеристиками, инвентарём и HP/AC).
+        entities::Character toCharacter() const;
+
+        /// Заполняет шаблон противника из существующего Character (из экрана Characters).
+        void applyCharacter(const entities::Character &character);
+
+        /// Пересчитывает AC, maxHp и бонус инициативы из класса, уровня, характеристик и надетой экипировки.
+        void recalculateStats();
     };
 
     /// Нелинейный сюжет сценария: владеет узлами и знает стартовый узел.

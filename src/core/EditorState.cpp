@@ -1,8 +1,10 @@
 #include "core/EditorState.hpp"
 
 #include "core/Application.hpp"
+#include "entities/ItemPresets.hpp"
 #include "gui/editor/EditorOps.hpp"
 #include "gui/editor/EditorWidgets.hpp"
+#include "scenario/CharacterSerializer.hpp"
 #include "scenario/ScenarioSerializer.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -11,9 +13,11 @@
 #include <imgui.h>
 
 #include <algorithm>
+#include <cstdio>
 #include <filesystem>
 #include <system_error>
 #include <utility>
+#include <vector>
 
 namespace dnd::core
 {
@@ -26,6 +30,20 @@ namespace dnd::core
     {
         m_previousScale = ImGui::GetIO().FontGlobalScale;
         applyScale();
+        entities::registerRosterItems(context().roster);
+        std::error_code ec;
+        if (std::filesystem::is_directory("characters", ec))
+        {
+            for (const auto &entry : std::filesystem::directory_iterator("characters", ec))
+            {
+                if (entry.is_regular_file() && entry.path().extension() == ".dndch")
+                {
+                    entities::Roster saved;
+                    if (!CharacterSerializer::loadRosterFromFile(entry.path(), saved))
+                        (void)CharacterSerializer::loadFromFile(entry.path());
+                }
+            }
+        }
         resetScenario();
     }
 
@@ -80,6 +98,7 @@ namespace dnd::core
         m_canvas.fitToContent();
         m_bestiary.reset();
         m_documentPath.clear();
+        std::snprintf(m_fileName, sizeof(m_fileName), "%s", "new_scenario");
         m_savedSnapshot = snapshot();
     }
 
@@ -102,8 +121,11 @@ namespace dnd::core
         }
         m_documentPath = path;
         m_path = path;
+        const std::string stem = std::filesystem::path(path).stem().string();
+        if (!stem.empty())
+            std::snprintf(m_fileName, sizeof(m_fileName), "%s", stem.c_str());
         m_savedSnapshot = snapshot();
-        setStatus("Saved to " + path, false);
+        setStatus("Saved: " + path, false);
         return true;
     }
 
@@ -111,15 +133,19 @@ namespace dnd::core
     void EditorState::requestSave()
     {
         if (m_path != m_documentPath && fileExists(m_path))
+        {
             m_openOverwritePopup = true;
-        else
-            saveTo(m_path);
+        }
+        else if (saveTo(m_path) && m_pending != Pending::None)
+        {
+            performAction(m_pending);
+        }
     }
 
     /// «Save» в окне несохранённых изменений доступен, только если он не затрёт чужой файл.
     bool EditorState::canQuickSave() const
     {
-        return !m_documentPath.empty() || !fileExists(m_path);
+        return !m_documentPath.empty();
     }
 
     void EditorState::loadScenario()
@@ -136,8 +162,11 @@ namespace dnd::core
         m_canvas.fitToContent();
         m_bestiary.reset();
         m_documentPath = m_path;
+        const std::string stem = std::filesystem::path(m_path).stem().string();
+        if (!stem.empty())
+            std::snprintf(m_fileName, sizeof(m_fileName), "%s", stem.c_str());
         m_savedSnapshot = snapshot();
-        setStatus("Loaded " + m_path, false);
+        setStatus("Loaded: " + m_path, false);
     }
 
     void EditorState::requestAction(Pending action)
@@ -153,6 +182,7 @@ namespace dnd::core
 
     void EditorState::performAction(Pending action)
     {
+        m_pending = Pending::None;
         switch (action)
         {
         case Pending::Exit:
@@ -163,35 +193,34 @@ namespace dnd::core
             setStatus("New scenario", false);
             break;
         case Pending::Load:
-            loadScenario();
+            m_openLoadPopup = true;
             break;
         case Pending::None:
             break;
         }
-        m_pending = Pending::None;
     }
 
     // ------------------------------------------------------------------ интерфейс
 
     void EditorState::drawToolbar()
     {
-        // --- строка 1: файл ---
+        // --- строка 1: файл (всплывающие окна Save / Load, как в Characters) ---
         if (ImGui::Button("< Back"))
             requestAction(Pending::Exit);
         ImGui::SameLine();
         if (ImGui::Button("New"))
             requestAction(Pending::New);
         ImGui::SameLine();
-        ImGui::TextUnformatted("File:");
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(ImGui::GetFontSize() * 24.f);
-        ed::inputTextStd("##path", m_path);
-        ImGui::SameLine();
         if (ImGui::Button("Save"))
-            requestSave();
+            m_openSavePopup = true;
         ImGui::SameLine();
         if (ImGui::Button("Load"))
             requestAction(Pending::Load);
+        if (!m_documentPath.empty())
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%s)", m_documentPath.c_str());
+        }
 
         // --- строка 2: добавление узлов и вид ---
         ImGui::TextUnformatted("Add:");
@@ -316,7 +345,7 @@ namespace dnd::core
             }
             if (ImGui::BeginTabItem("Bestiary"))
             {
-                if (const auto focus = m_bestiary.draw(m_graph, m_canvas.selected()))
+                if (const auto focus = m_bestiary.draw(m_graph, m_canvas.selected(), &context().roster))
                 {
                     if (const Node *node = m_graph.find(*focus))
                     {
@@ -340,7 +369,76 @@ namespace dnd::core
 
     void EditorState::drawModals()
     {
+        namespace fs = std::filesystem;
         const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+
+        // --- сохранение сценария (всплывающее окно с указанием пути, как в Characters) ---
+        if (m_openSavePopup)
+        {
+            ImGui::OpenPopup("Save scenario");
+            m_openSavePopup = false;
+        }
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (ImGui::BeginPopupModal("Save scenario", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("File (in %s/, extension .dndsc):", kSaveDir);
+            ImGui::InputText("##fname", m_fileName, sizeof(m_fileName));
+            if (ImGui::Button("Save"))
+            {
+                std::string name = m_fileName;
+                if (name.empty())
+                    name = "new_scenario";
+                if (fs::path(name).extension() != ".dndsc")
+                    name += ".dndsc";
+                const fs::path path = fs::path(name).has_parent_path()
+                                          ? fs::path(name)
+                                          : (fs::path(kSaveDir) / fs::path(name).filename());
+                m_path = path.string();
+                ImGui::CloseCurrentPopup();
+                requestSave();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+            {
+                m_pending = Pending::None;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+
+        // --- загрузка сценария (список файлов в scenarios/, как в Characters) ---
+        if (m_openLoadPopup)
+        {
+            ImGui::OpenPopup("Load scenario");
+            m_openLoadPopup = false;
+        }
+        ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+        if (ImGui::BeginPopupModal("Load scenario", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            std::vector<fs::path> files;
+            std::error_code ec;
+            if (fs::is_directory(kSaveDir, ec))
+            {
+                for (const auto &entry : fs::directory_iterator(kSaveDir, ec))
+                    if (entry.is_regular_file() && entry.path().extension() == ".dndsc")
+                        files.push_back(entry.path());
+                std::sort(files.begin(), files.end());
+            }
+            if (files.empty())
+                ImGui::Text("No saved files in %s/", kSaveDir);
+            for (const auto &p : files)
+            {
+                if (ImGui::Selectable(p.filename().string().c_str()))
+                {
+                    m_path = p.string();
+                    loadScenario();
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (ImGui::Button("Cancel"))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
 
         // --- несохранённые изменения ---
         if (m_openUnsavedPopup)
@@ -353,31 +451,29 @@ namespace dnd::core
         {
             ImGui::TextUnformatted("The scenario has unsaved changes.");
 
-            // Загрузка заменяет сценарий, а поле «File» в этот момент указывает на загружаемый файл:
-            // сохранять «заодно» нельзя, иначе текущий сценарий затрёт чужой файл.
-            const bool offerSave = m_pending != Pending::Load && canQuickSave();
-            const std::string &target = m_documentPath.empty() ? m_path : m_documentPath;
-            if (offerSave)
-                ImGui::TextDisabled("Save will write to: %s", target.c_str());
-            else if (m_pending == Pending::Load)
-                ImGui::TextDisabled("Cancel, press Save, then Load - or discard the changes.");
+            if (canQuickSave())
+                ImGui::TextDisabled("Save will write to: %s", m_documentPath.c_str());
             else
-                ImGui::TextDisabled("Cancel and press Save with a new file name first.");
+                ImGui::TextDisabled("Save will ask for a file name in %s/.", kSaveDir);
             ImGui::Separator();
 
-            if (offerSave)
+            if (ImGui::Button("Save"))
             {
-                if (ImGui::Button("Save"))
+                ImGui::CloseCurrentPopup();
+                if (canQuickSave())
                 {
                     const Pending action = m_pending;
-                    ImGui::CloseCurrentPopup();
-                    if (saveTo(target))
+                    if (saveTo(m_documentPath))
                         performAction(action);
                     else
-                        m_pending = Pending::None; // причина ошибки видна в строке статуса
+                        m_pending = Pending::None;
                 }
-                ImGui::SameLine();
+                else
+                {
+                    m_openSavePopup = true;
+                }
             }
+            ImGui::SameLine();
             if (ImGui::Button("Discard"))
             {
                 ImGui::CloseCurrentPopup();
@@ -407,11 +503,17 @@ namespace dnd::core
             if (ImGui::Button("Overwrite"))
             {
                 ImGui::CloseCurrentPopup();
-                saveTo(m_path);
+                if (saveTo(m_path) && m_pending != Pending::None)
+                    performAction(m_pending);
+                else
+                    m_pending = Pending::None;
             }
             ImGui::SameLine();
             if (ImGui::Button("Cancel"))
+            {
+                m_pending = Pending::None;
                 ImGui::CloseCurrentPopup();
+            }
             ImGui::EndPopup();
         }
 

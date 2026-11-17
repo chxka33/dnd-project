@@ -19,41 +19,6 @@ namespace dnd::gui
         const ImVec4 kBad(0.90f, 0.30f, 0.30f, 1.f);
         const ImVec4 kMuted(0.65f, 0.65f, 0.65f, 1.f);
 
-        std::string describe(const Item &item)
-        {
-            char buf[160];
-            switch (item.type)
-            {
-            case ItemType::Weapon:
-                if (!item.weapon)
-                    return "";
-                std::snprintf(buf, sizeof(buf), "%s %s%s%s", item.weapon->damage.c_str(),
-                              item.weapon->damageType.c_str(),
-                              item.weapon->finesse ? ", finesse" : "",
-                              item.weapon->ranged ? ", ranged" : "");
-                return buf;
-            case ItemType::Armor:
-                if (!item.armor)
-                    return "(no armor stats)";
-                {
-                    std::string text = "AC " + std::to_string(item.armor->baseAc) + " (" +
-                                       toString(item.armor->category) + ")";
-                    if (item.armor->strengthRequirement > 0)
-                        text += ", needs STR " + std::to_string(item.armor->strengthRequirement);
-                    if (item.armor->stealthDisadvantage)
-                        text += ", stealth disadv.";
-                    return text;
-                }
-            case ItemType::Shield:
-                std::snprintf(buf, sizeof(buf), "+%d AC", item.shieldBonus);
-                return buf;
-            case ItemType::Consumable:
-            case ItemType::Misc:
-                return item.description;
-            }
-            return "";
-        }
-
         const char *kItemTypeNames[] = {"Misc", "Weapon", "Armor", "Shield", "Consumable"};
         const char *kArmorCategoryNames[] = {"Light", "Medium", "Heavy"};
     } // namespace
@@ -445,7 +410,7 @@ namespace dnd::gui
                 ImGui::TableSetColumnIndex(3);
                 ImGui::Text("%.1f", item.totalWeight());
                 ImGui::TableSetColumnIndex(4);
-                ImGui::TextWrapped("%s", describe(item).c_str());
+                ImGui::TextWrapped("%s", describeItem(item).c_str());
 
                 ImGui::TableSetColumnIndex(5);
                 if (item.isEquippable())
@@ -587,7 +552,9 @@ namespace dnd::gui
                 item.description = m_customDescription;
                 break;
             }
+            registerItemPreset(item);
             c.inventory().add(std::move(item));
+            m_customName.clear();
         }
         ImGui::EndDisabled();
     }

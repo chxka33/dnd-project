@@ -262,3 +262,55 @@ TEST_CASE("SessionSerializer: сохранение и загрузка сесс�
     CHECK(loadedFighter.hasCondition("Frightened"));
     CHECK(loadedFighter.currentHp() < loadedFighter.maxHp());
 }
+
+TEST_CASE("ScenarioSerializer: синхронизация классов, характеристик и предметов с редактором", "[scenario][sync]")
+{
+    ScenarioGraph graph;
+    graph.title = "Синхронизация";
+
+    // Создаём персонажа (как в Characters) с кастомной экипировкой и переносим в бестиарий
+    Character boss("Orc Warlock", CharacterClass::Warlock, 4, AbilityScores(12, 14, 16, 10, 12, 18));
+    const std::size_t armorIdx = boss.inventory().add(
+        Item::makeArmor("Runed Hide", {ArmorCategory::Medium, 14, 0, false}, 12.0));
+    boss.inventory().equip(armorIdx);
+    const std::size_t staffIdx = boss.inventory().add(
+        Item::makeWeapon("Eldritch Staff", {"1d8", "force", false, false}, 4.0));
+    boss.inventory().equip(staffIdx);
+    boss.inventory().setGold(120);
+
+    EnemyTemplate enemy;
+    enemy.id = "orc_warlock";
+    enemy.applyCharacter(boss);
+    graph.addEnemy(enemy);
+
+    auto &scene = graph.emplace<StoryNode>("lair", "Логово");
+    scene.enemyIds = {"orc_warlock"};
+    Loot loot;
+    loot.gold = 50;
+    loot.items.push_back({"Eldritch Staff", 1});
+    scene.loot = loot;
+
+    const nlohmann::json j = ScenarioSerializer::toJson(graph);
+    std::string err;
+    auto loaded = ScenarioSerializer::fromJson(j, &err);
+    REQUIRE(loaded != nullptr);
+    CHECK(err.empty());
+
+    const EnemyTemplate *loadedEnemy = loaded->findEnemy("orc_warlock");
+    REQUIRE(loadedEnemy != nullptr);
+    CHECK(loadedEnemy->characterClass == CharacterClass::Warlock);
+    CHECK(loadedEnemy->level == 4);
+    CHECK(loadedEnemy->abilities.score(Ability::Charisma) == 18);
+    CHECK(loadedEnemy->armorClass == boss.armorClass());
+    CHECK(loadedEnemy->maxHp == boss.maxHp());
+    CHECK(loadedEnemy->initiativeBonus == boss.initiativeModifier());
+    CHECK(loadedEnemy->inventory.gold() == 120);
+    REQUIRE(loadedEnemy->inventory.equippedArmor() != nullptr);
+    CHECK(loadedEnemy->inventory.equippedArmor()->name == "Runed Hide");
+
+    const Character reconstructed = loadedEnemy->toCharacter();
+    CHECK(reconstructed.characterClass() == CharacterClass::Warlock);
+    CHECK(reconstructed.level() == 4);
+    CHECK(reconstructed.armorClass() == boss.armorClass());
+    CHECK(reconstructed.maxHp() == boss.maxHp());
+}

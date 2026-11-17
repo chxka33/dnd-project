@@ -1,5 +1,7 @@
 #include "scenario/CharacterSerializer.hpp"
 
+#include "entities/ItemPresets.hpp"
+
 #include <fstream>
 #include <system_error>
 
@@ -231,6 +233,7 @@ namespace dnd::scenario
                     Item item = deserializeItem(itemJ);
                     if (!item.name.empty())
                     {
+                        registerItemPreset(item);
                         const bool wasEquipped = item.equipped;
                         item.equipped = false;
                         const auto idx = character->inventory().add(item);

@@ -1,5 +1,11 @@
 #include "entities/ItemPresets.hpp"
 
+#include "entities/Inventory.hpp"
+#include "entities/Roster.hpp"
+
+#include <cstdio>
+#include <utility>
+
 namespace dnd::entities
 {
 
@@ -55,12 +61,91 @@ namespace dnd::entities
             v.push_back(Item::misc("Thieves' Tools", 1.0));
             return v;
         }
+
+        std::vector<Item> &mutablePresets()
+        {
+            static std::vector<Item> presets = buildPresets();
+            return presets;
+        }
+
+        bool isBareMisc(const Item &item)
+        {
+            return item.type == ItemType::Misc && item.weight <= 0.0 && item.description.empty();
+        }
     } // namespace
 
     const std::vector<Item> &itemPresets()
     {
-        static const std::vector<Item> presets = buildPresets();
-        return presets;
+        return mutablePresets();
+    }
+
+    void registerItemPreset(Item item)
+    {
+        if (item.name.empty())
+            return;
+        item.quantity = 1;
+        item.equipped = false;
+
+        std::vector<Item> &presets = mutablePresets();
+        for (Item &existing : presets)
+        {
+            if (existing.name == item.name)
+            {
+                // Не затираем полноценный предмет пустой заглушкой Misc без веса и описания.
+                if (!isBareMisc(existing) && isBareMisc(item))
+                    return;
+                existing = std::move(item);
+                return;
+            }
+        }
+        presets.push_back(std::move(item));
+    }
+
+    void registerInventoryItems(const Inventory &inventory)
+    {
+        for (const Item &item : inventory.items())
+            registerItemPreset(item);
+    }
+
+    void registerRosterItems(const Roster &roster)
+    {
+        for (const RosterEntry &entry : roster.entries())
+            registerInventoryItems(entry.character.inventory());
+    }
+
+    std::string describeItem(const Item &item)
+    {
+        char buf[160];
+        switch (item.type)
+        {
+        case ItemType::Weapon:
+            if (!item.weapon)
+                return "";
+            std::snprintf(buf, sizeof(buf), "%s %s%s%s", item.weapon->damage.c_str(),
+                          item.weapon->damageType.c_str(),
+                          item.weapon->finesse ? ", finesse" : "",
+                          item.weapon->ranged ? ", ranged" : "");
+            return buf;
+        case ItemType::Armor:
+            if (!item.armor)
+                return "(no armor stats)";
+            {
+                std::string text = "AC " + std::to_string(item.armor->baseAc) + " (" +
+                                   toString(item.armor->category) + ")";
+                if (item.armor->strengthRequirement > 0)
+                    text += ", needs STR " + std::to_string(item.armor->strengthRequirement);
+                if (item.armor->stealthDisadvantage)
+                    text += ", stealth disadv.";
+                return text;
+            }
+        case ItemType::Shield:
+            std::snprintf(buf, sizeof(buf), "+%d AC", item.shieldBonus);
+            return buf;
+        case ItemType::Consumable:
+        case ItemType::Misc:
+            return item.description;
+        }
+        return "";
     }
 
     Item itemFromName(const std::string &name, int quantity)

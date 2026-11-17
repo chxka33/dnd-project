@@ -1,5 +1,8 @@
 #include "gui/editor/NodeInspector.hpp"
 
+#include "entities/AbilityScores.hpp"
+#include "entities/CharacterClass.hpp"
+#include "entities/ItemPresets.hpp"
 #include "gui/editor/EditorOps.hpp"
 #include "gui/editor/EditorWidgets.hpp"
 
@@ -15,15 +18,28 @@ namespace dnd::gui::editor
 
     namespace
     {
-        constexpr std::array<Ability, 6> kAbilities = {Ability::Strength, Ability::Dexterity, Ability::Constitution,
-                                                       Ability::Intelligence, Ability::Wisdom, Ability::Charisma};
-        constexpr std::array<const char *, 6> kAbilityNames = {"Strength", "Dexterity", "Constitution",
-                                                               "Intelligence", "Wisdom", "Charisma"};
         constexpr std::array<int, 7> kDice = {4, 6, 8, 10, 12, 20, 100};
+        const char *kItemTypeNames[] = {"Misc", "Weapon", "Armor", "Shield", "Consumable"};
+        const char *kArmorCategoryNames[] = {"Light", "Medium", "Heavy"};
 
         void label(const char *text)
         {
             ImGui::TextUnformatted(text);
+        }
+
+        void addOrStackLootItem(Loot &loot, const std::string &name, int quantity)
+        {
+            if (name.empty() || quantity <= 0)
+                return;
+            for (LootItem &existing : loot.items)
+            {
+                if (existing.name == name)
+                {
+                    existing.quantity += quantity;
+                    return;
+                }
+            }
+            loot.items.push_back({name, quantity});
         }
     } // namespace
 
@@ -125,11 +141,19 @@ namespace dnd::gui::editor
             check.type = CheckType::SavingThrow;
 
         label("Ability");
-        int abilityIndex = static_cast<int>(
-            std::find(kAbilities.begin(), kAbilities.end(), check.ability) - kAbilities.begin());
         ImGui::SetNextItemWidth(-FLT_MIN);
-        if (ImGui::Combo("##ability", &abilityIndex, kAbilityNames.data(), static_cast<int>(kAbilityNames.size())))
-            check.ability = kAbilities[static_cast<std::size_t>(abilityIndex)];
+        if (ImGui::BeginCombo("##ability", entities::fullName(check.ability)))
+        {
+            for (Ability ab : entities::kAllAbilities)
+            {
+                const bool selected = ab == check.ability;
+                if (ImGui::Selectable(entities::fullName(ab), selected))
+                    check.ability = ab;
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
 
         if (check.type == CheckType::SkillCheck)
         {
@@ -178,12 +202,111 @@ namespace dnd::gui::editor
             ImGui::SameLine();
             if (ImGui::SmallButton("x"))
                 removeIndex = static_cast<int>(i);
+
+            const entities::Item resolved = entities::itemFromName(item.name, item.quantity);
+            const std::string details = entities::describeItem(resolved);
+            ImGui::TextDisabled("  [%s]%s%s", kItemTypeNames[static_cast<int>(resolved.type)],
+                                details.empty() ? "" : " ", details.c_str());
             ImGui::PopID();
         }
         if (removeIndex >= 0)
             loot.items.erase(loot.items.begin() + removeIndex);
-        if (ImGui::Button("Add item"))
-            loot.items.push_back({"New item", 1});
+
+        // --- Добавление из общего каталога (SRD + предметы из Characters) ---
+        ImGui::SeparatorText("Add from catalog");
+        const std::vector<entities::Item> &presets = entities::itemPresets();
+        if (!presets.empty())
+        {
+            m_presetIndex = std::clamp(m_presetIndex, 0, static_cast<int>(presets.size()) - 1);
+            const entities::Item &selectedPreset = presets[static_cast<std::size_t>(m_presetIndex)];
+            if (ImGui::BeginCombo("Catalog", selectedPreset.name.c_str()))
+            {
+                for (int i = 0; i < static_cast<int>(presets.size()); ++i)
+                {
+                    const entities::Item &p = presets[static_cast<std::size_t>(i)];
+                    const std::string desc = entities::describeItem(p);
+                    const std::string entryLabel = desc.empty() ? p.name : p.name + "  (" + desc + ")";
+                    ImGui::PushID(i);
+                    if (ImGui::Selectable(entryLabel.c_str(), i == m_presetIndex))
+                        m_presetIndex = i;
+                    ImGui::PopID();
+                }
+                ImGui::EndCombo();
+            }
+            intField("Quantity##preset", m_presetQuantity, 1, 999, 1);
+            if (ImGui::Button("Add from catalog"))
+            {
+                addOrStackLootItem(loot, presets[static_cast<std::size_t>(m_presetIndex)].name, m_presetQuantity);
+            }
+        }
+
+        // --- Свой предмет (синхронизируется с каталогом Characters) ---
+        if (ImGui::TreeNode("Custom item"))
+        {
+            inputTextStd("Name##custom", m_customName);
+            ImGui::Combo("Type##custom", &m_customType, kItemTypeNames, 5);
+            intField("Quantity##custom", m_customQuantity, 1, 999, 1);
+            ImGui::InputFloat("Weight (lb, each)", &m_customWeight, 0.f, 0.f, "%.1f");
+            m_customWeight = std::max(0.f, m_customWeight);
+
+            const entities::ItemType type = static_cast<entities::ItemType>(m_customType);
+            switch (type)
+            {
+            case entities::ItemType::Weapon:
+                inputTextStd("Damage", m_customDamage);
+                inputTextStd("Damage type", m_customDamageType);
+                ImGui::Checkbox("Finesse", &m_customFinesse);
+                ImGui::SameLine();
+                ImGui::Checkbox("Ranged", &m_customRanged);
+                break;
+            case entities::ItemType::Armor:
+                ImGui::Combo("Armor category", &m_customArmorCategory, kArmorCategoryNames, 3);
+                intField("Base AC", m_customBaseAc, 0, 30, 1);
+                intField("Strength requirement", m_customStrReq, 0, 30, 1);
+                ImGui::Checkbox("Stealth disadvantage", &m_customStealth);
+                break;
+            case entities::ItemType::Shield:
+                intField("AC bonus", m_customShieldBonus, 0, 10, 1);
+                break;
+            case entities::ItemType::Consumable:
+            case entities::ItemType::Misc:
+                inputTextStd("Description", m_customDescription);
+                break;
+            }
+
+            ImGui::BeginDisabled(m_customName.empty());
+            if (ImGui::Button("Add custom item"))
+            {
+                entities::Item item;
+                item.name = m_customName;
+                item.type = type;
+                item.weight = m_customWeight;
+                item.quantity = m_customQuantity;
+                switch (type)
+                {
+                case entities::ItemType::Weapon:
+                    item.weapon = entities::WeaponStats{m_customDamage, m_customDamageType,
+                                                        m_customFinesse, m_customRanged};
+                    break;
+                case entities::ItemType::Armor:
+                    item.armor = entities::ArmorStats{static_cast<entities::ArmorCategory>(m_customArmorCategory),
+                                                      m_customBaseAc, m_customStrReq, m_customStealth};
+                    break;
+                case entities::ItemType::Shield:
+                    item.shieldBonus = m_customShieldBonus;
+                    break;
+                case entities::ItemType::Consumable:
+                case entities::ItemType::Misc:
+                    item.description = m_customDescription;
+                    break;
+                }
+                entities::registerItemPreset(item);
+                addOrStackLootItem(loot, item.name, m_customQuantity);
+                m_customName.clear();
+            }
+            ImGui::EndDisabled();
+            ImGui::TreePop();
+        }
     }
 
     // ------------------------------------------------------------------ переходы
@@ -315,8 +438,9 @@ namespace dnd::gui::editor
         {
             ImGui::PushID(enemyId.c_str());
             if (const EnemyTemplate *enemy = graph.findEnemy(enemyId))
-                ImGui::Text("%s  (AC %d, HP %d, init %+d)", enemy->name.c_str(), enemy->armorClass,
-                            enemy->maxHp, enemy->initiativeBonus);
+                ImGui::Text("%s - %s %d  (AC %d, HP %d, init %+d)", enemy->name.c_str(),
+                            entities::classInfo(enemy->characterClass).displayName, enemy->level,
+                            enemy->armorClass, enemy->maxHp, enemy->initiativeBonus);
             else
                 ImGui::TextColored(ImVec4(0.9f, 0.3f, 0.3f, 1.f), "Unknown monster: %s", enemyId.c_str());
             ImGui::SameLine();
@@ -337,7 +461,10 @@ namespace dnd::gui::editor
                 if (already)
                     continue;
                 ImGui::PushID(enemy.id.c_str());
-                if (ImGui::Selectable(enemy.name.c_str()))
+                const std::string entryLabel = enemy.name + " - " +
+                                               entities::classInfo(enemy.characterClass).displayName + " " +
+                                               std::to_string(enemy.level);
+                if (ImGui::Selectable(entryLabel.c_str()))
                     attachEnemy(graph, node.id(), enemy.id);
                 ImGui::PopID();
             }

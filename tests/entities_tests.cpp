@@ -588,3 +588,33 @@ TEST_CASE("itemFromName: каталог и запасной вариант", "[e
     CHECK(unknown.quantity == 2);
     CHECK(unknown.name == "Загадочный амулет");
 }
+
+TEST_CASE("Синхронизация кастомных предметов между Characters и Scenario Editor", "[entities][items][sync]")
+{
+    Item customSword = Item::makeWeapon("Flaming Greatsword", {"2d6", "fire", false, false}, 6.0);
+    registerItemPreset(customSword);
+
+    const Item fromCatalog = itemFromName("Flaming Greatsword", 1);
+    CHECK(fromCatalog.type == ItemType::Weapon);
+    REQUIRE(fromCatalog.weapon.has_value());
+    CHECK(fromCatalog.weapon->damage == "2d6");
+    CHECK(fromCatalog.weapon->damageType == "fire");
+    CHECK(fromCatalog.weight == 6.0);
+    CHECK(describeItem(fromCatalog) == "2d6 fire");
+
+    // Пустая заглушка Misc не затирает уже зарегистрированный предмет с параметрами
+    registerItemPreset(Item::misc("Flaming Greatsword"));
+    CHECK(itemFromName("Flaming Greatsword").type == ItemType::Weapon);
+
+    // При выдаче лута из сценария персонаж получает полноценный кастомный предмет
+    Character hero("Герой", CharacterClass::Fighter);
+    dnd::scenario::Loot loot;
+    loot.items.push_back({"Flaming Greatsword", 1});
+    hero.receiveLoot(loot);
+
+    const std::size_t idx = hero.inventory().find("Flaming Greatsword");
+    REQUIRE(idx < hero.inventory().size());
+    CHECK(hero.inventory().items()[idx].type == ItemType::Weapon);
+    REQUIRE(hero.inventory().items()[idx].weapon.has_value());
+    CHECK(hero.inventory().items()[idx].weapon->damage == "2d6");
+}

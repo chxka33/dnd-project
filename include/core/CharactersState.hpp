@@ -5,6 +5,8 @@
 #include "gui/AddCharacterDialog.hpp"
 #include "gui/CharacterSheetPanel.hpp"
 
+#include <string>
+
 namespace dnd::core
 {
 
@@ -26,6 +28,15 @@ namespace dnd::core
     private:
         void applyScale() const;
         void drawRosterList(entities::Roster &roster);
+        void drawFileDialogs(entities::Roster &roster);
+
+        /// Папка с сохранёнными персонажами (.dndch), как у сценариев.
+        static constexpr const char *kSaveDir = "characters";
+
+        char m_fileName[128] = "party";
+        std::string m_status;
+        bool m_openSave = false;
+        bool m_openLoad = false;
 
         gui::CharacterSheetPanel m_sheet{gui::CharacterSheetPanel::Mode::Setup};
         gui::AddCharacterDialog m_addDialog;

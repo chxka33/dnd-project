@@ -1,5 +1,7 @@
 #include "scenario/ScenarioGraph.hpp"
 
+#include "entities/ItemPresets.hpp"
+
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_set>
@@ -7,10 +9,49 @@
 namespace dnd::scenario
 {
 
+    entities::Character EnemyTemplate::toCharacter() const
+    {
+        entities::Character ch(name, characterClass, level, abilities);
+        ch.inventory() = inventory;
+        ch.setMiscArmorClassBonus(armorClass - ch.armorClass());
+        ch.setCurrentHp(currentHp);
+        return ch;
+    }
+
+    void EnemyTemplate::applyCharacter(const entities::Character &character)
+    {
+        name = character.name;
+        characterClass = character.characterClass();
+        level = character.level();
+        abilities = character.abilities();
+        inventory = character.inventory();
+        armorClass = character.armorClass();
+        maxHp = character.maxHp();
+        currentHp = character.currentHp();
+        initiativeBonus = character.initiativeModifier();
+        entities::registerInventoryItems(inventory);
+    }
+
+    void EnemyTemplate::recalculateStats()
+    {
+        level = std::clamp(level, entities::Character::kMinLevel, entities::Character::kMaxLevel);
+        entities::Character ch(name, characterClass, level, abilities);
+        ch.inventory() = inventory;
+        const int previousMax = maxHp;
+        maxHp = ch.maxHp();
+        if (currentHp >= previousMax)
+            currentHp = maxHp;
+        else
+            currentHp = std::clamp(currentHp + std::max(0, maxHp - previousMax), 0, maxHp);
+        armorClass = ch.armorClass();
+        initiativeBonus = ch.initiativeModifier();
+    }
+
     void ScenarioGraph::addEnemy(EnemyTemplate enemy)
     {
         if (enemy.id.empty())
             throw std::invalid_argument("Enemy id must not be empty");
+        entities::registerInventoryItems(enemy.inventory);
         for (auto &e : enemies)
         {
             if (e.id == enemy.id)

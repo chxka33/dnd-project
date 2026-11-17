@@ -163,3 +163,24 @@ TEST_CASE("Editor: autoLayout раскладывает узлы по слоям 
     CHECK(x2 > x1);
     CHECK(x3 > x2); // недостижимые — в отдельной колонке справа
 }
+
+TEST_CASE("Editor: пересчёт параметров монстра от класса, уровня и снаряжения", "[editor][bestiary]")
+{
+    EnemyTemplate enemy;
+    enemy.id = "paladin_npc";
+    enemy.name = "Fallen Paladin";
+    enemy.characterClass = dnd::entities::CharacterClass::Paladin; // d10
+    enemy.level = 3;
+    enemy.abilities = dnd::entities::AbilityScores(16, 12, 14, 10, 12, 16); // ЛОВ +1, ТЕЛ +2
+    const auto armorIdx = enemy.inventory.add(
+        dnd::entities::Item::makeArmor("Chain Mail", {dnd::entities::ArmorCategory::Heavy, 16, 13, true}, 55.0));
+    enemy.inventory.equip(armorIdx);
+    const auto shieldIdx = enemy.inventory.add(dnd::entities::Item::makeShield("Shield", 2, 6.0));
+    enemy.inventory.equip(shieldIdx);
+
+    enemy.recalculateStats();
+    CHECK(enemy.armorClass == 18); // кольчуга 16 + щит 2
+    CHECK(enemy.maxHp == 12 + 2 * 8);
+    CHECK(enemy.currentHp == enemy.maxHp);
+    CHECK(enemy.initiativeBonus == 1);
+}

@@ -1,5 +1,8 @@
 #include "scenario/ScenarioSerializer.hpp"
 
+#include "entities/ItemPresets.hpp"
+
+#include <algorithm>
 #include <fstream>
 #include <system_error>
 
@@ -81,6 +84,124 @@ namespace dnd::scenario
             return check;
         }
 
+        nlohmann::json serializeWeapon(const entities::WeaponStats &w)
+        {
+            return {
+                {"damage", w.damage},
+                {"damageType", w.damageType},
+                {"finesse", w.finesse},
+                {"ranged", w.ranged}};
+        }
+
+        entities::WeaponStats deserializeWeapon(const nlohmann::json &j)
+        {
+            entities::WeaponStats w;
+            if (j.is_object())
+            {
+                w.damage = j.value("damage", "1d6");
+                w.damageType = j.value("damageType", "");
+                w.finesse = j.value("finesse", false);
+                w.ranged = j.value("ranged", false);
+            }
+            return w;
+        }
+
+        nlohmann::json serializeArmor(const entities::ArmorStats &a)
+        {
+            return {
+                {"category", entities::toString(a.category)},
+                {"baseAc", a.baseAc},
+                {"strengthRequirement", a.strengthRequirement},
+                {"stealthDisadvantage", a.stealthDisadvantage}};
+        }
+
+        entities::ArmorStats deserializeArmor(const nlohmann::json &j)
+        {
+            entities::ArmorStats a;
+            if (j.is_object())
+            {
+                if (j.contains("category") && j["category"].is_string())
+                {
+                    if (auto cat = entities::armorCategoryFromString(j["category"].get<std::string>()))
+                        a.category = *cat;
+                }
+                a.baseAc = j.value("baseAc", 10);
+                a.strengthRequirement = j.value("strengthRequirement", 0);
+                a.stealthDisadvantage = j.value("stealthDisadvantage", false);
+            }
+            return a;
+        }
+
+        nlohmann::json serializeItem(const entities::Item &item)
+        {
+            nlohmann::json j;
+            j["name"] = item.name;
+            j["type"] = entities::toString(item.type);
+            j["description"] = item.description;
+            j["weight"] = item.weight;
+            j["quantity"] = item.quantity;
+            j["equipped"] = item.equipped;
+            j["shieldBonus"] = item.shieldBonus;
+
+            if (item.weapon)
+                j["weapon"] = serializeWeapon(*item.weapon);
+            if (item.armor)
+                j["armor"] = serializeArmor(*item.armor);
+
+            return j;
+        }
+
+        entities::Item deserializeItem(const nlohmann::json &j)
+        {
+            entities::Item item;
+            if (j.is_object())
+            {
+                item.name = j.value("name", "");
+                if (j.contains("type") && j["type"].is_string())
+                {
+                    if (auto t = entities::itemTypeFromString(j["type"].get<std::string>()))
+                        item.type = *t;
+                }
+                item.description = j.value("description", "");
+                item.weight = j.value("weight", 0.0);
+                item.quantity = j.value("quantity", 1);
+                item.equipped = j.value("equipped", false);
+                item.shieldBonus = j.value("shieldBonus", 0);
+
+                if (j.contains("weapon") && j["weapon"].is_object())
+                    item.weapon = deserializeWeapon(j["weapon"]);
+                if (j.contains("armor") && j["armor"].is_object())
+                    item.armor = deserializeArmor(j["armor"]);
+            }
+            return item;
+        }
+
+        nlohmann::json serializeAbilities(const entities::AbilityScores &a)
+        {
+            return {
+                {"strength", a.score(Ability::Strength)},
+                {"dexterity", a.score(Ability::Dexterity)},
+                {"constitution", a.score(Ability::Constitution)},
+                {"intelligence", a.score(Ability::Intelligence)},
+                {"wisdom", a.score(Ability::Wisdom)},
+                {"charisma", a.score(Ability::Charisma)}};
+        }
+
+        entities::AbilityScores deserializeAbilities(const nlohmann::json &j)
+        {
+            entities::AbilityScores a;
+            if (j.is_object())
+            {
+                a.setScore(Ability::Strength, j.value("strength", 10));
+                a.setScore(Ability::Dexterity, j.value("dexterity", 10));
+                a.setScore(Ability::Constitution, j.value("constitution", 10));
+                a.setScore(Ability::Intelligence, j.value("intelligence", 10));
+                a.setScore(Ability::Wisdom, j.value("wisdom", 10));
+                a.setScore(Ability::Charisma, j.value("charisma", 10));
+            }
+            return a;
+        }
+
         nlohmann::json serializeLoot(const Loot &loot)
         {
             nlohmann::json j;
@@ -88,9 +209,13 @@ namespace dnd::scenario
             nlohmann::json itemsArr = nlohmann::json::array();
             for (const auto &item : loot.items)
             {
-                itemsArr.push_back({
+                nlohmann::json entry = {
                     {"name", item.name},
-                    {"quantity", item.quantity}});
+                    {"quantity", item.quantity}};
+                const entities::Item full = entities::itemFromName(item.name, item.quantity);
+                if (full.type != entities::ItemType::Misc || full.weight > 0.0 || !full.description.empty())
+                    entry["item"] = serializeItem(full);
+                itemsArr.push_back(std::move(entry));
             }
             j["items"] = itemsArr;
             return j;
@@ -112,6 +237,14 @@ namespace dnd::scenario
                             LootItem item;
                             item.name = itemJ.value("name", "");
                             item.quantity = itemJ.value("quantity", 1);
+                            if (itemJ.contains("item") && itemJ["item"].is_object())
+                            {
+                                entities::Item preset = deserializeItem(itemJ["item"]);
+                                if (preset.name.empty())
+                                    preset.name = item.name;
+                                if (!preset.name.empty())
+                                    entities::registerItemPreset(std::move(preset));
+                            }
                             loot.items.push_back(std::move(item));
                         }
                     }
@@ -122,13 +255,22 @@ namespace dnd::scenario
 
         nlohmann::json serializeEnemyTemplate(const EnemyTemplate &e)
         {
+            nlohmann::json invArr = nlohmann::json::array();
+            for (const auto &item : e.inventory.items())
+                invArr.push_back(serializeItem(item));
+
             return {
                 {"id", e.id},
                 {"name", e.name},
                 {"ac", e.armorClass},
                 {"maxHp", e.maxHp},
                 {"currentHp", e.currentHp},
-                {"initiativeBonus", e.initiativeBonus}};
+                {"initiativeBonus", e.initiativeBonus},
+                {"class", entities::toString(e.characterClass)},
+                {"level", e.level},
+                {"abilities", serializeAbilities(e.abilities)},
+                {"gold", e.inventory.gold()},
+                {"inventory", std::move(invArr)}};
         }
 
         EnemyTemplate deserializeEnemyTemplate(const nlohmann::json &j)
@@ -142,6 +284,38 @@ namespace dnd::scenario
                 e.maxHp = j.value("maxHp", 10);
                 e.currentHp = j.value("currentHp", e.maxHp);
                 e.initiativeBonus = j.value("initiativeBonus", 0);
+
+                if (j.contains("class") && j["class"].is_string())
+                {
+                    if (auto cls = entities::characterClassFromString(j["class"].get<std::string>()))
+                        e.characterClass = *cls;
+                }
+                if (j.contains("level") && j["level"].is_number_integer())
+                {
+                    e.level = std::clamp(j["level"].get<int>(),
+                                         entities::Character::kMinLevel,
+                                         entities::Character::kMaxLevel);
+                }
+                if (j.contains("abilities") && j["abilities"].is_object())
+                    e.abilities = deserializeAbilities(j["abilities"]);
+                if (j.contains("gold") && j["gold"].is_number_integer())
+                    e.inventory.setGold(j["gold"].get<int>());
+                if (j.contains("inventory") && j["inventory"].is_array())
+                {
+                    for (const auto &itemJ : j["inventory"])
+                    {
+                        entities::Item item = deserializeItem(itemJ);
+                        if (!item.name.empty())
+                        {
+                            entities::registerItemPreset(item);
+                            const bool wasEquipped = item.equipped;
+                            item.equipped = false;
+                            const auto idx = e.inventory.add(item);
+                            if (wasEquipped && idx < e.inventory.size())
+                                e.inventory.equip(idx);
+                        }
+                    }
+                }
             }
             return e;
         }

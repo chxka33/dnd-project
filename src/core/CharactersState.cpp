@@ -1,7 +1,13 @@
 #include "core/CharactersState.hpp"
 
 #include "core/Application.hpp"
+#include "entities/ItemPresets.hpp"
 #include "gui/Widgets.hpp"
+#include "scenario/CharacterSerializer.hpp"
+
+#include <filesystem>
+#include <system_error>
+#include <vector>
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -24,6 +30,7 @@ namespace dnd::core
     {
         m_previousScale = ImGui::GetIO().FontGlobalScale;
         applyScale();
+        entities::registerRosterItems(context().roster);
     }
 
     void CharactersState::onExit()
@@ -83,6 +90,12 @@ namespace dnd::core
         if (ImGui::Button("Add character"))
             m_addDialog.open();
         ImGui::SameLine();
+        if (ImGui::Button("Save"))
+            m_openSave = true;
+        ImGui::SameLine();
+        if (ImGui::Button("Load"))
+            m_openLoad = true;
+        ImGui::SameLine();
         ImGui::TextUnformatted("UI scale");
         ImGui::SameLine();
         if (ImGui::Button("-"))
@@ -95,6 +108,11 @@ namespace dnd::core
         {
             m_scale = std::min(4.0f, m_scale + 0.25f);
             applyScale();
+        }
+        if (!m_status.empty())
+        {
+            ImGui::SameLine();
+            ImGui::TextUnformatted(m_status.c_str());
         }
         ImGui::Separator();
 
@@ -131,7 +149,86 @@ namespace dnd::core
         if (added >= 0)
             m_sheet.select(added);
 
+        drawFileDialogs(roster);
+
         ImGui::End();
+    }
+
+    void CharactersState::drawFileDialogs(entities::Roster &roster)
+    {
+        namespace fs = std::filesystem;
+
+        if (m_openSave)
+        {
+            ImGui::OpenPopup("Save characters");
+            m_openSave = false;
+        }
+        if (m_openLoad)
+        {
+            ImGui::OpenPopup("Load characters");
+            m_openLoad = false;
+        }
+
+        if (ImGui::BeginPopupModal("Save characters", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::Text("File (in %s/, extension .dndch):", kSaveDir);
+            ImGui::InputText("##fname", m_fileName, sizeof(m_fileName));
+            if (ImGui::Button("Save"))
+            {
+                std::string name = m_fileName;
+                if (name.empty())
+                    name = "party";
+                if (fs::path(name).extension() != ".dndch")
+                    name += ".dndch";
+                // Только имя файла: без вложенных путей.
+                const fs::path path = fs::path(kSaveDir) / fs::path(name).filename();
+                std::string err;
+                if (scenario::CharacterSerializer::saveRosterToFile(roster, path, &err))
+                    m_status = "Saved: " + path.string();
+                else
+                    m_status = "Save failed: " + err;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Cancel"))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
+
+        if (ImGui::BeginPopupModal("Load characters", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            std::vector<fs::path> files;
+            std::error_code ec;
+            if (fs::is_directory(kSaveDir, ec))
+            {
+                for (const auto &entry : fs::directory_iterator(kSaveDir, ec))
+                    if (entry.is_regular_file() && entry.path().extension() == ".dndch")
+                        files.push_back(entry.path());
+                std::sort(files.begin(), files.end());
+            }
+            if (files.empty())
+                ImGui::Text("No saved files in %s/", kSaveDir);
+            for (const auto &p : files)
+            {
+                if (ImGui::Selectable(p.filename().string().c_str()))
+                {
+                    entities::Roster loaded;
+                    std::string err;
+                    if (scenario::CharacterSerializer::loadRosterFromFile(p, loaded, &err))
+                    {
+                        roster = std::move(loaded);
+                        m_sheet.select(0);
+                        m_status = "Loaded: " + p.string();
+                    }
+                    else
+                        m_status = "Load failed: " + err;
+                    ImGui::CloseCurrentPopup();
+                }
+            }
+            if (ImGui::Button("Cancel"))
+                ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+        }
     }
 
 } // namespace dnd::core
