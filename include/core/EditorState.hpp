@@ -65,10 +65,8 @@ namespace dnd::core
         gui::editor::BestiaryPanel m_bestiary;
         std::vector<scenario::ValidationIssue> m_issues;
 
-        static constexpr const char *kSaveDir = "scenarios";
-
         char m_fileName[128] = "new_scenario";
-        std::string m_path = "scenarios/new_scenario.dndsc"; ///< целевой путь сохранения / загрузки
+        std::string m_path = "new_scenario.dndsc"; ///< целевой путь сохранения / загрузки
         std::string m_documentPath;                          ///< файл открытого сценария ("" — ещё не сохранён)
         std::string m_savedSnapshot;
         std::string m_status;

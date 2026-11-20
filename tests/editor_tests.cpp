@@ -5,6 +5,9 @@
 #include "scenario/RandomNode.hpp"
 #include "scenario/ScenarioGraph.hpp"
 #include "scenario/StoryNode.hpp"
+#include "utils/ExecutablePath.hpp"
+
+#include <filesystem>
 
 using namespace dnd::scenario;
 using namespace dnd::gui::editor;
@@ -183,4 +186,43 @@ TEST_CASE("Editor: пересчёт параметров монстра от к�
     CHECK(enemy.maxHp == 12 + 2 * 8);
     CHECK(enemy.currentHp == enemy.maxHp);
     CHECK(enemy.initiativeBonus == 1);
+}
+
+TEST_CASE("ExecutablePath: пути сохранения рассчитываются относительно каталога бинарника", "[utils][paths]")
+{
+    namespace fs = std::filesystem;
+
+    struct CurrentPathGuard
+    {
+        fs::path original = fs::current_path();
+        ~CurrentPathGuard()
+        {
+            std::error_code ec;
+            fs::current_path(original, ec);
+        }
+    } guard;
+
+    std::error_code ec;
+    const fs::path tempDir = fs::temp_directory_path(ec);
+    if (!ec && fs::is_directory(tempDir, ec))
+        fs::current_path(tempDir, ec);
+
+    const fs::path &exeDir = dnd::utils::executableDir();
+    REQUIRE_FALSE(exeDir.empty());
+    CHECK(exeDir.is_absolute());
+    CHECK(fs::is_directory(exeDir));
+
+#ifdef _WIN32
+    constexpr const char *kTestBinary = "dnd_tests.exe";
+#else
+    constexpr const char *kTestBinary = "dnd_tests";
+#endif
+    CHECK(fs::exists(exeDir / kTestBinary));
+
+    CHECK(dnd::utils::executableRelativePath("") == exeDir);
+    CHECK(dnd::utils::executableRelativePath("party.dndch") == exeDir / "party.dndch");
+    CHECK(dnd::utils::executableRelativePath("new_scenario.dndsc") == exeDir / "new_scenario.dndsc");
+
+    const fs::path absTarget = exeDir / "custom" / "file.dndsc";
+    CHECK(dnd::utils::executableRelativePath(absTarget) == absTarget);
 }

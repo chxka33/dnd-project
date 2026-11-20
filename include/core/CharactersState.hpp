@@ -30,9 +30,6 @@ namespace dnd::core
         void drawRosterList(entities::Roster &roster);
         void drawFileDialogs(entities::Roster &roster);
 
-        /// Папка с сохранёнными персонажами (.dndch), как у сценариев.
-        static constexpr const char *kSaveDir = "characters";
-
         char m_fileName[128] = "party";
         std::string m_status;
         bool m_openSave = false;

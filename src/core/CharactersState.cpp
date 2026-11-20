@@ -4,6 +4,7 @@
 #include "entities/ItemPresets.hpp"
 #include "gui/Widgets.hpp"
 #include "scenario/CharacterSerializer.hpp"
+#include "utils/ExecutablePath.hpp"
 
 #include <filesystem>
 #include <system_error>
@@ -157,6 +158,7 @@ namespace dnd::core
     void CharactersState::drawFileDialogs(entities::Roster &roster)
     {
         namespace fs = std::filesystem;
+        const fs::path saveDir = utils::executableDir();
 
         if (m_openSave)
         {
@@ -171,7 +173,7 @@ namespace dnd::core
 
         if (ImGui::BeginPopupModal("Save characters", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            ImGui::Text("File (in %s/, extension .dndch):", kSaveDir);
+            ImGui::TextUnformatted("File (extension .dndch):");
             ImGui::InputText("##fname", m_fileName, sizeof(m_fileName));
             if (ImGui::Button("Save"))
             {
@@ -181,7 +183,7 @@ namespace dnd::core
                 if (fs::path(name).extension() != ".dndch")
                     name += ".dndch";
                 // Только имя файла: без вложенных путей.
-                const fs::path path = fs::path(kSaveDir) / fs::path(name).filename();
+                const fs::path path = saveDir / fs::path(name).filename();
                 std::string err;
                 if (scenario::CharacterSerializer::saveRosterToFile(roster, path, &err))
                     m_status = "Saved: " + path.string();
@@ -199,15 +201,15 @@ namespace dnd::core
         {
             std::vector<fs::path> files;
             std::error_code ec;
-            if (fs::is_directory(kSaveDir, ec))
+            if (fs::is_directory(saveDir, ec))
             {
-                for (const auto &entry : fs::directory_iterator(kSaveDir, ec))
+                for (const auto &entry : fs::directory_iterator(saveDir, ec))
                     if (entry.is_regular_file() && entry.path().extension() == ".dndch")
                         files.push_back(entry.path());
                 std::sort(files.begin(), files.end());
             }
             if (files.empty())
-                ImGui::Text("No saved files in %s/", kSaveDir);
+                ImGui::TextUnformatted("No saved .dndch files found.");
             for (const auto &p : files)
             {
                 if (ImGui::Selectable(p.filename().string().c_str()))

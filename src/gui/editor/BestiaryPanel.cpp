@@ -7,6 +7,7 @@
 #include "gui/editor/EditorOps.hpp"
 #include "gui/editor/EditorWidgets.hpp"
 #include "scenario/CharacterSerializer.hpp"
+#include "utils/ExecutablePath.hpp"
 
 #include <imgui.h>
 
@@ -25,7 +26,6 @@ namespace dnd::gui::editor
         const ImVec4 kMuted(0.65f, 0.65f, 0.65f, 1.f);
         const char *kItemTypeNames[] = {"Misc", "Weapon", "Armor", "Shield", "Consumable"};
         const char *kArmorCategoryNames[] = {"Light", "Medium", "Heavy"};
-        constexpr const char *kCharactersDir = "characters";
     } // namespace
 
     void BestiaryPanel::drawImportPopup(ScenarioGraph &graph, const entities::Roster *roster)
@@ -59,11 +59,12 @@ namespace dnd::gui::editor
             ImGui::TextColored(kMuted, "No characters in current session.");
 
         namespace fs = std::filesystem;
+        const fs::path charactersDir = utils::executableDir();
         std::vector<fs::path> files;
         std::error_code ec;
-        if (fs::is_directory(kCharactersDir, ec))
+        if (fs::is_directory(charactersDir, ec))
         {
-            for (const auto &entry : fs::directory_iterator(kCharactersDir, ec))
+            for (const auto &entry : fs::directory_iterator(charactersDir, ec))
                 if (entry.is_regular_file() && entry.path().extension() == ".dndch")
                     files.push_back(entry.path());
             std::sort(files.begin(), files.end());
@@ -72,7 +73,7 @@ namespace dnd::gui::editor
         if (!files.empty())
         {
             ImGui::Separator();
-            ImGui::TextDisabled("Saved in %s/", kCharactersDir);
+            ImGui::TextDisabled("Saved files (.dndch)");
             for (const auto &p : files)
             {
                 ImGui::PushID(p.string().c_str());

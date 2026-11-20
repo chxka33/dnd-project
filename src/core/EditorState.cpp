@@ -6,6 +6,7 @@
 #include "gui/editor/EditorWidgets.hpp"
 #include "scenario/CharacterSerializer.hpp"
 #include "scenario/ScenarioSerializer.hpp"
+#include "utils/ExecutablePath.hpp"
 
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/Window/Keyboard.hpp>
@@ -31,10 +32,11 @@ namespace dnd::core
         m_previousScale = ImGui::GetIO().FontGlobalScale;
         applyScale();
         entities::registerRosterItems(context().roster);
+        const std::filesystem::path charactersDir = utils::executableDir();
         std::error_code ec;
-        if (std::filesystem::is_directory("characters", ec))
+        if (std::filesystem::is_directory(charactersDir, ec))
         {
-            for (const auto &entry : std::filesystem::directory_iterator("characters", ec))
+            for (const auto &entry : std::filesystem::directory_iterator(charactersDir, ec))
             {
                 if (entry.is_regular_file() && entry.path().extension() == ".dndch")
                 {
@@ -99,6 +101,7 @@ namespace dnd::core
         m_bestiary.reset();
         m_documentPath.clear();
         std::snprintf(m_fileName, sizeof(m_fileName), "%s", "new_scenario");
+        m_path = (utils::executableDir() / "new_scenario.dndsc").string();
         m_savedSnapshot = snapshot();
     }
 
@@ -370,6 +373,7 @@ namespace dnd::core
     void EditorState::drawModals()
     {
         namespace fs = std::filesystem;
+        const fs::path saveDir = utils::executableDir();
         const ImVec2 center = ImGui::GetMainViewport()->GetCenter();
 
         // --- сохранение сценария (всплывающее окно с указанием пути, как в Characters) ---
@@ -381,7 +385,7 @@ namespace dnd::core
         ImGui::SetNextWindowPos(center, ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
         if (ImGui::BeginPopupModal("Save scenario", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
         {
-            ImGui::Text("File (in %s/, extension .dndsc):", kSaveDir);
+            ImGui::TextUnformatted("File (extension .dndsc):");
             ImGui::InputText("##fname", m_fileName, sizeof(m_fileName));
             if (ImGui::Button("Save"))
             {
@@ -390,9 +394,10 @@ namespace dnd::core
                     name = "new_scenario";
                 if (fs::path(name).extension() != ".dndsc")
                     name += ".dndsc";
-                const fs::path path = fs::path(name).has_parent_path()
-                                          ? fs::path(name)
-                                          : (fs::path(kSaveDir) / fs::path(name).filename());
+                const fs::path inputPath(name);
+                const fs::path path = inputPath.has_parent_path()
+                                          ? utils::executableRelativePath(inputPath)
+                                          : (saveDir / inputPath.filename());
                 m_path = path.string();
                 ImGui::CloseCurrentPopup();
                 requestSave();
@@ -417,15 +422,15 @@ namespace dnd::core
         {
             std::vector<fs::path> files;
             std::error_code ec;
-            if (fs::is_directory(kSaveDir, ec))
+            if (fs::is_directory(saveDir, ec))
             {
-                for (const auto &entry : fs::directory_iterator(kSaveDir, ec))
+                for (const auto &entry : fs::directory_iterator(saveDir, ec))
                     if (entry.is_regular_file() && entry.path().extension() == ".dndsc")
                         files.push_back(entry.path());
                 std::sort(files.begin(), files.end());
             }
             if (files.empty())
-                ImGui::Text("No saved files in %s/", kSaveDir);
+                ImGui::TextUnformatted("No saved .dndsc files found.");
             for (const auto &p : files)
             {
                 if (ImGui::Selectable(p.filename().string().c_str()))
@@ -454,7 +459,7 @@ namespace dnd::core
             if (canQuickSave())
                 ImGui::TextDisabled("Save will write to: %s", m_documentPath.c_str());
             else
-                ImGui::TextDisabled("Save will ask for a file name in %s/.", kSaveDir);
+                ImGui::TextDisabled("Save will ask for a file name (.dndsc).");
             ImGui::Separator();
 
             if (ImGui::Button("Save"))
