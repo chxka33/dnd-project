@@ -1,5 +1,6 @@
 #pragma once
 
+#include "core/AppConfig.hpp"
 #include "core/ResourceManager.hpp"
 #include "core/StateManager.hpp"
 #include "entities/Roster.hpp"
@@ -10,34 +11,14 @@
 
 namespace dnd::core
 {
-    struct AppConfig
-    {
-        unsigned width = 1920;
-        unsigned height = 1080;
-        unsigned fps = 120;
-        std::string title = "D&D Project";
-        std::string assetRoot = "assets";
-
-        /// Ручной масштаб интерфейса. 0 — автоматически подстраивать под размер окна.
-        /// Значение можно изменить в меню Options, переопределив автоматический масштаб.
-        float uiScale = 0.f;
-
-        enum class ScreenMode
-        {
-            Windowed,
-            Fullscreen,
-            Borderless
-        };
-        ScreenMode screenMode = ScreenMode::Borderless;
-    };
-
     struct AppContext
     {
         sf::RenderWindow &window;
         ResourceManager &resources;
         StateManager &states;
         entities::Roster &roster; ///< персонажи текущей сессии (общие для всех экранов)
-        AppConfig &config;        ///< настройки приложения (Options может менять масштаб интерфейса)
+        AppConfig &config;        ///< настройки приложения (Options меняет их на лету)
+        bool windowRecreateRequested = false; ///< пересоздать окно между кадрами
     };
 
     /// Главный объект приложения: окно + Game Loop.
@@ -56,6 +37,7 @@ namespace dnd::core
     private:
         void processEvents();
         void registerStates();
+        void recreateWindow();
 
         AppConfig m_config;
         sf::RenderWindow m_window;

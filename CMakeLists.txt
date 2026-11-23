@@ -16,6 +16,14 @@ FetchContent_Declare(SFML
     GIT_TAG        2.6.x
     GIT_SHALLOW    TRUE)
 
+# Проекту нужны только graphics/window/system. Аудио и сеть не используются
+# и не должны собираться вместе с SFML.
+set(SFML_BUILD_AUDIO OFF CACHE BOOL "" FORCE)
+set(SFML_BUILD_NETWORK OFF CACHE BOOL "" FORCE)
+set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SFML_BUILD_TEST_SUITE OFF CACHE BOOL "" FORCE)
+set(SFML_BUILD_DOC OFF CACHE BOOL "" FORCE)
+
 FetchContent_Declare(imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG        v1.89.9
