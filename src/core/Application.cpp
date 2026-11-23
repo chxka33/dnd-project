@@ -35,7 +35,7 @@ namespace dnd::core
 
         return sf::RenderWindow(sf::VideoMode(config.width, config.height),
                                 config.title); }()),
-          m_context{m_window, m_resources, m_states, m_roster}
+          m_context{m_window, m_resources, m_states, m_roster, m_config}
     {
         m_window.setFramerateLimit(m_config.fps);
         m_resources.setAssetRoot(m_config.assetRoot);
@@ -76,6 +76,8 @@ namespace dnd::core
         m_states.registerState(StateId::Options,
                                []
                                { return std::make_unique<PlaceholderState>("Options"); });
+        // Масштаб интерфейса задаётся в AppConfig::uiScale: 0 — авто по размеру окна,
+        // любое значение > 0 — ручной масштаб из будущего экрана Options.
     }
 
     void Application::processEvents()

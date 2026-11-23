@@ -10,14 +10,6 @@
 
 namespace dnd::core
 {
-    struct AppContext
-    {
-        sf::RenderWindow &window;
-        ResourceManager &resources;
-        StateManager &states;
-        entities::Roster &roster; ///< персонажи текущей сессии (общие для всех экранов)
-    };
-
     struct AppConfig
     {
         unsigned width = 1920;
@@ -26,6 +18,10 @@ namespace dnd::core
         std::string title = "D&D Project";
         std::string assetRoot = "assets";
 
+        /// Ручной масштаб интерфейса. 0 — автоматически подстраивать под размер окна.
+        /// Значение можно изменить в меню Options, переопределив автоматический масштаб.
+        float uiScale = 0.f;
+
         enum class ScreenMode
         {
             Windowed,
@@ -33,6 +29,15 @@ namespace dnd::core
             Borderless
         };
         ScreenMode screenMode = ScreenMode::Borderless;
+    };
+
+    struct AppContext
+    {
+        sf::RenderWindow &window;
+        ResourceManager &resources;
+        StateManager &states;
+        entities::Roster &roster; ///< персонажи текущей сессии (общие для всех экранов)
+        AppConfig &config;        ///< настройки приложения (Options может менять масштаб интерфейса)
     };
 
     /// Главный объект приложения: окно + Game Loop.

@@ -46,7 +46,7 @@ namespace dnd::core
         void drawScenarioTab();
         void drawModals();
 
-        void applyScale() const;
+        void applyAdaptiveScale();
         void requestAction(Pending action);
         void performAction(Pending action);
         bool saveTo(const std::string &path);
@@ -81,8 +81,7 @@ namespace dnd::core
         scenario::NodeId m_deleteTarget;
         bool m_focusSceneTab = false;
 
-        float m_scale = 1.5f; ///< масштаб шрифта этого экрана
-        float m_previousScale = 1.0f;
+        float m_previousScale = 1.0f; ///< глобальный масштаб до входа на экран
     };
 
 } // namespace dnd::core

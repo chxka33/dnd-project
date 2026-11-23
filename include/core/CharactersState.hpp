@@ -26,7 +26,7 @@ namespace dnd::core
         void render(sf::RenderWindow &) override {}
 
     private:
-        void applyScale() const;
+        void applyAdaptiveScale();
         void drawRosterList(entities::Roster &roster);
         void drawFileDialogs(entities::Roster &roster);
 
@@ -38,8 +38,7 @@ namespace dnd::core
         gui::CharacterSheetPanel m_sheet{gui::CharacterSheetPanel::Mode::Setup};
         gui::AddCharacterDialog m_addDialog;
 
-        float m_scale = 2.0f;      ///< масштаб шрифта этого экрана
-        float m_previousScale = 1.0f;
+        float m_previousScale = 1.0f; ///< глобальный масштаб до входа на экран
     };
 
 } // namespace dnd::core

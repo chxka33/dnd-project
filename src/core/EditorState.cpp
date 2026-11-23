@@ -1,6 +1,7 @@
 #include "core/EditorState.hpp"
 
 #include "core/Application.hpp"
+#include "core/UiScale.hpp"
 #include "entities/ItemPresets.hpp"
 #include "gui/editor/EditorOps.hpp"
 #include "gui/editor/EditorWidgets.hpp"
@@ -30,7 +31,7 @@ namespace dnd::core
     void EditorState::onEnter()
     {
         m_previousScale = ImGui::GetIO().FontGlobalScale;
-        applyScale();
+        applyAdaptiveScale();
         entities::registerRosterItems(context().roster);
         const std::filesystem::path charactersDir = utils::executableDir();
         std::error_code ec;
@@ -54,9 +55,9 @@ namespace dnd::core
         ImGui::GetIO().FontGlobalScale = m_previousScale;
     }
 
-    void EditorState::applyScale() const
+    void EditorState::applyAdaptiveScale()
     {
-        ImGui::GetIO().FontGlobalScale = m_scale;
+        applyUiScale(context().window.getSize(), context().config.uiScale);
     }
 
     void EditorState::handleEvent(const sf::Event &event)
@@ -249,20 +250,6 @@ namespace dnd::core
         }
         ImGui::SameLine();
         ImGui::Text("Zoom %d%%", static_cast<int>(m_canvas.zoom() * 100.f + 0.5f));
-        ImGui::SameLine();
-        ImGui::TextUnformatted(" | UI scale");
-        ImGui::SameLine();
-        if (ImGui::Button("-"))
-        {
-            m_scale = std::max(1.0f, m_scale - 0.25f);
-            applyScale();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+"))
-        {
-            m_scale = std::min(3.0f, m_scale + 0.25f);
-            applyScale();
-        }
     }
 
     void EditorState::drawSceneTab()
@@ -558,6 +545,7 @@ namespace dnd::core
 
     void EditorState::drawUi()
     {
+        applyAdaptiveScale();
         const sf::Vector2u size = context().window.getSize();
 
         ImGui::SetNextWindowPos(ImVec2(0.f, 0.f), ImGuiCond_Always);

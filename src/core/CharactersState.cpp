@@ -1,6 +1,7 @@
 #include "core/CharactersState.hpp"
 
 #include "core/Application.hpp"
+#include "core/UiScale.hpp"
 #include "entities/ItemPresets.hpp"
 #include "gui/Widgets.hpp"
 #include "scenario/CharacterSerializer.hpp"
@@ -21,16 +22,16 @@
 namespace dnd::core
 {
 
-    void CharactersState::applyScale() const
+    void CharactersState::applyAdaptiveScale()
     {
         // FontGlobalScale действует и на всплывающие окна (выпадающие списки, диалоги).
-        ImGui::GetIO().FontGlobalScale = m_scale;
+        applyUiScale(context().window.getSize(), context().config.uiScale);
     }
 
     void CharactersState::onEnter()
     {
         m_previousScale = ImGui::GetIO().FontGlobalScale;
-        applyScale();
+        applyAdaptiveScale();
         entities::registerRosterItems(context().roster);
     }
 
@@ -75,6 +76,7 @@ namespace dnd::core
 
     void CharactersState::drawUi()
     {
+        applyAdaptiveScale();
         entities::Roster &roster = context().roster;
         const sf::Vector2u size = context().window.getSize();
 
@@ -96,20 +98,6 @@ namespace dnd::core
         ImGui::SameLine();
         if (ImGui::Button("Load"))
             m_openLoad = true;
-        ImGui::SameLine();
-        ImGui::TextUnformatted("UI scale");
-        ImGui::SameLine();
-        if (ImGui::Button("-"))
-        {
-            m_scale = std::max(1.0f, m_scale - 0.25f);
-            applyScale();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("+"))
-        {
-            m_scale = std::min(4.0f, m_scale + 0.25f);
-            applyScale();
-        }
         if (!m_status.empty())
         {
             ImGui::SameLine();
