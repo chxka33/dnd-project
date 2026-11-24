@@ -2,6 +2,7 @@
 #include "core/CharactersState.hpp"
 #include "core/EditorState.hpp"
 #include "core/MainMenuState.hpp"
+#include "core/SimulatorState.hpp"
 
 #include <SFML/System/Clock.hpp>
 
@@ -66,10 +67,9 @@ namespace dnd::core
         m_states.registerState(StateId::Editor,
                                []
                                { return std::make_unique<EditorState>(); });
-        // TODO(Ярошук): заменить на SimulatorState
         m_states.registerState(StateId::Simulator,
                                []
-                               { return std::make_unique<PlaceholderState>("Game Simulator"); });
+                               { return std::make_unique<SimulatorState>(); });
         m_states.registerState(StateId::Characters,
                                []
                                { return std::make_unique<CharactersState>(); });

@@ -6,6 +6,7 @@
 #include <imgui.h>
 
 #include <optional>
+#include <utility>
 #include <vector>
 
 namespace dnd::gui::editor
@@ -48,6 +49,15 @@ namespace dnd::gui::editor
 
         /// Запрос на удаление узла (Delete / контекстное меню). true один раз на запрос.
         bool takeDeleteRequest(scenario::NodeId &out);
+
+        // --- режим симулятора ---
+        /// Только просмотр: панорама, масштаб и выбор узла; без перетаскивания узлов, связей и удаления.
+        void setReadOnly(bool readOnly) { m_readOnly = readOnly; }
+        bool isReadOnly() const { return m_readOnly; }
+
+        /// Узел, в котором сейчас находится партия (подсвечивается на карте).
+        void setActiveNode(scenario::NodeId id) { m_activeNode = std::move(id); }
+        const scenario::NodeId &activeNode() const { return m_activeNode; }
 
         // --- текущее перетаскивание ---
         bool isInteracting() const { return m_drag != Drag::None; }
@@ -99,6 +109,9 @@ namespace dnd::gui::editor
         ImVec2 m_size{0.f, 0.f};
         bool m_pendingFit = true;
         std::optional<scenario::NodeId> m_pendingFocus;
+
+        bool m_readOnly = false;
+        scenario::NodeId m_activeNode;
 
         // выделение и перетаскивание
         scenario::NodeId m_selected;

@@ -279,8 +279,9 @@ namespace dnd::gui::editor
             else if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
             {
                 m_dragButton = ImGuiMouseButton_Left;
-                if (const Node *port = hitPort(order, mouse))
+                if (!m_readOnly && hitPort(order, mouse))
                 {
+                    const Node *port = hitPort(order, mouse);
                     select(port->id());
                     m_drag = Drag::NewLink;
                     m_dragNode = port->id();
@@ -288,8 +289,15 @@ namespace dnd::gui::editor
                 else if (const Node *node = hitNode(order, mouse))
                 {
                     select(node->id());
-                    m_drag = Drag::MoveNode;
-                    m_dragNode = node->id();
+                    if (!m_readOnly)
+                    {
+                        m_drag = Drag::MoveNode;
+                        m_dragNode = node->id();
+                    }
+                }
+                else if (m_readOnly)
+                {
+                    m_drag = Drag::Pan;
                 }
                 else if (const LinkGeometry *link = hitLink(mouse))
                 {
@@ -302,7 +310,7 @@ namespace dnd::gui::editor
                     m_drag = Drag::Pan;
                 }
             }
-            else if (ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            else if (!m_readOnly && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
             {
                 m_ctxNode.clear();
                 m_ctxLink.reset();
@@ -357,7 +365,7 @@ namespace dnd::gui::editor
         }
 
         // --- клавиатура ---
-        if (!io.WantTextInput && (hovered || ImGui::IsWindowFocused()) && m_drag == Drag::None &&
+        if (!m_readOnly && !io.WantTextInput && (hovered || ImGui::IsWindowFocused()) && m_drag == Drag::None &&
             (ImGui::IsKeyPressed(ImGuiKey_Delete, false) || ImGui::IsKeyPressed(ImGuiKey_Backspace, false)))
         {
             if (m_selectedLink)
@@ -483,6 +491,7 @@ namespace dnd::gui::editor
 
             const bool selected = node->id() == m_selected;
             const bool isDragTarget = m_drag == Drag::NewLink && node->id() != m_dragNode && inside(mouse, min, max);
+            const bool isActive = !m_activeNode.empty() && node->id() == m_activeNode;
 
             // Тень и корпус.
             dl->AddRectFilled(ImVec2(min.x + 4.f * m_zoom, min.y + 5.f * m_zoom),
@@ -506,6 +515,11 @@ namespace dnd::gui::editor
             {
                 border = IM_COL32(90, 220, 110, 255);
                 borderThickness = 3.f;
+            }
+            if (isActive)
+            {
+                border = IM_COL32(70, 220, 140, 255);
+                borderThickness = 3.5f;
             }
             if (selected)
             {
@@ -563,6 +577,7 @@ namespace dnd::gui::editor
             }
 
             // Метка старта.
+            float badgeX = min.x;
             if (node->id() == graph.startId())
             {
                 const float fs = 12.f * std::max(m_zoom, 0.7f);
@@ -572,6 +587,19 @@ namespace dnd::gui::editor
                                   3.f * m_zoom);
                 dl->AddText(font, fs, ImVec2(tl.x + 5.f * m_zoom, tl.y + 2.f * m_zoom),
                             IM_COL32(255, 255, 255, 255), "START");
+                badgeX = tl.x + ts.x + 16.f * m_zoom;
+            }
+
+            // Метка «партия здесь».
+            if (isActive)
+            {
+                const float fs = 12.f * std::max(m_zoom, 0.7f);
+                const ImVec2 ts = font->CalcTextSizeA(fs, FLT_MAX, 0.f, "PARTY");
+                const ImVec2 tl(badgeX, min.y - ts.y - 6.f * m_zoom);
+                dl->AddRectFilled(tl, ImVec2(tl.x + ts.x + 10.f * m_zoom, min.y - 1.f), IM_COL32(40, 170, 110, 255),
+                                  3.f * m_zoom);
+                dl->AddText(font, fs, ImVec2(tl.x + 5.f * m_zoom, tl.y + 2.f * m_zoom),
+                            IM_COL32(255, 255, 255, 255), "PARTY");
             }
 
             // Порты: вход слева, выход справа (за него тянут новую связь).
@@ -581,7 +609,7 @@ namespace dnd::gui::editor
             dl->AddCircleFilled(in, portR * 0.75f, IM_COL32(60, 52, 46, 255));
             dl->AddCircle(in, portR * 0.75f, IM_COL32(190, 175, 150, 255), 0, 1.5f);
             const ImVec2 d = vsub(mouse, out);
-            const bool portHot = (d.x * d.x + d.y * d.y) <= (portR + 3.f) * (portR + 3.f);
+            const bool portHot = !m_readOnly && (d.x * d.x + d.y * d.y) <= (portR + 3.f) * (portR + 3.f);
             dl->AddCircleFilled(out, portR, portHot ? IM_COL32(255, 220, 90, 255) : nodeTypeColor(node->type()));
             dl->AddCircle(out, portR, IM_COL32(240, 230, 210, 255), 0, 1.5f);
         }
